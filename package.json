@@ -1,0 +1,14 @@
+{
+  "name": "mis-finanzas",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "deploy": "npm run db:migrate && wrangler deploy",
+    "db:migrate": "wrangler d1 migrations apply DB --remote",
+    "dev": "wrangler dev",
+    "test": "node --test tests/"
+  },
+  "devDependencies": {
+    "wrangler": "^4.151.1"
+  }
+}
