@@ -1,0 +1,14 @@
+node_modules/
+.wrangler/
+.dev.vars
+.dev.vars.*
+.env
+.env.*
+data/
+logs/
+*.xlsx
+*.csv
+*.log
+backup*.json
+.DS_Store
+Thumbs.db
