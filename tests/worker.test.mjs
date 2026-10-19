@@ -158,3 +158,17 @@ test("the Mercado Pago token is renewed before it expires, and the new refresh t
   assert.equal(mp.calls.at(-1).refresh_token, "REFRESH-1");
   assert.equal((await env.DB.prepare("SELECT refresh_token FROM mp_token").first()).refresh_token, "REFRESH-2");
 });
+
+test("personal rules: saved, read back with the state, removed; bad ones refused", async () => {
+  const { cookie } = await signIn();
+  const save = (body) => req("/api/rules", { method: "POST", cookie, body });
+  assert.equal((await save({ writes: [{ kind: "name", match: "Kioscoejemplo", value: "Kiosco" },
+    { kind: "word", match: "heladosejemplo", value: "Regalos" }] })).status, 200);
+  let st = await (await req("/api/state", { cookie })).json();
+  assert.deepEqual(st.rules, [{ kind: "name", match: "Kioscoejemplo", value: "Kiosco" }, { kind: "word", match: "heladosejemplo", value: "Regalos" }]);
+  await save({ deletes: [{ kind: "word", match: "heladosejemplo" }] });
+  st = await (await req("/api/state", { cookie })).json();
+  assert.equal(st.rules.length, 1);
+  assert.equal((await save({ writes: [{ kind: "otro", match: "x", value: "y" }] })).status, 400);
+  assert.equal((await save({ writes: [{ kind: "word", match: "x", value: "" }] })).status, 400);
+});

@@ -25,14 +25,14 @@ export const api = {
   },
   /** Raw movements, latest verified balance, recipient names and notes. */
   async load() {
-    if (DEMO) return { rows: demoRows(), balance: demoBalance(), recipients: null, notes: null };
+    if (DEMO) return { rows: demoRows(), balance: demoBalance(), recipients: null, notes: null, rules: null };
     const st = await call("/api/state"), rows = [];
     for (let page = 0; ; page++) {
       const r = await call(`/api/movements?page=${page}`);
       rows.push(...r.rows);
       if (!r.more) break;
     }
-    return { rows, balance: st.balance, recipients: st.recipients, notes: st.notes };
+    return { rows, balance: st.balance, recipients: st.recipients, notes: st.notes, rules: st.rules };
   },
   /** The last sync runs, newest first: [{ ok, finished_at, rows, detail }]. */
   async syncLog() { return DEMO ? [] : (await call("/api/sync-log")).runs; },
@@ -52,5 +52,7 @@ export const api = {
   async saveNotes(writes, deletes) { if (!DEMO) await call("/api/notes", { writes, deletes }); },
   /** Name a transfer recipient (empty name = forget the name). Demo: kept only in this browser. */
   async saveRecipient(key, name, category) { if (!DEMO) await call("/api/recipients", { key, name, category }); },
+  /** Personal rules: upsert [{ kind, match, value }], delete [{ kind, match }]. Demo: kept only in this browser. */
+  async saveRules(writes, deletes) { if (!DEMO) await call("/api/rules", { writes, deletes }); },
   async signOut() { if (!DEMO) await call("/api/auth/logout", {}); },
 };

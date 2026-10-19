@@ -1,7 +1,8 @@
 // Mis finanzas — app. Reads raw movements through lib/api.js (only the Owner can), interprets them with rules.js,
 // and shows: the month in four numbers, spending per month, every category of the month (amount + how many
 // times), and — tapping a category — everything that makes it up. Facts only: sums and counts, no advice.
-import rules from "./rules.js";
+import baseRules from "./rules.js";
+import { withPersonal } from "./lib/personal.js";
 import { enrich, enrichIn, liveBalance, keywordCategory, learnedWords, learnedCategory, wordsToLearn } from "./lib/model.js";
 import { monthlyBars, horizontalBars, categoryBars, categoryTable } from "./lib/charts.js";
 import { api, DEMO } from "./lib/api.js";
@@ -25,6 +26,10 @@ const store = {
   get: (k, d) => { try { const v = localStorage.getItem("mpf." + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
   set: (k, v) => { try { localStorage.setItem("mpf." + k, JSON.stringify(v)); } catch { /* private mode */ } },
 };
+// the Template's rules + the Owner's personal rules (merchant names, words), from their database
+const PKEY = DEMO ? "demoPersonal" : "personal";   // demo rules never mix with the real ones
+let personal = store.get(PKEY, []);
+let rules = withPersonal(baseRules, personal);
 // a category's own color (rules.tints) for its icon, as an inline style attribute (or nothing)
 const tintStyle = (cat) => (rules.tints?.[cat] ? ` style="--t:${rules.tints[cat]}"` : "");
 const monthName = (key, withYear = false) => { const [y, m] = key.split("-"); return MES[+m - 1] + (withYear ? " " + y : ""); };
@@ -215,6 +220,8 @@ function openMoveSheet(id, dir) {
   // "always this category for this merchant": only for real merchants (not transfers or generic labels)
   const canRule = dir === "out" && !r.recipient_key && !isGenericMerchant(r.merchant);
   $("#mvAllRow").hidden = !canRule; $("#mvAll").checked = !!rule?.category;
+  $("#mvNameRow").hidden = !canRule; f.dataset.auto = r.merchant_auto ?? r.merchant;
+  $("#mvName").placeholder = r.merchant_auto ?? r.merchant; $("#mvName").value = rules.renames?.[r.merchant_auto] ?? "";
   $("#mvAllLabel").textContent = `Usar la categoría elegida para todo lo de "${r.merchant}"`;
   $("#mvRecipient").hidden = !r.recipient_key; $("#mvRecipient").dataset.rk = r.recipient_key || "";
   $("#mvClear").hidden = !notes[id];
@@ -244,11 +251,59 @@ async function saveNote({ id, merchant, dir }, note, category, allMerchant) {
   try {
     if (writes.length || deletes.length) await api.saveNotes(writes, deletes);
     notes = next; store.set(NKEY, notes); reenrich();
-    showBanner(learn.length ? `Guardado. Aprendí: ${learn.join(", ")} → ${category}.` : writes.length ? "Guardado." : "Nota borrada.",
-      learn.length ? 3500 : 2000);
+    if (writes.length || deletes.length) {   // nothing changed (e.g. only the merchant's name): no message here
+      showBanner(learn.length ? `Guardado. Aprendí: ${learn.join(", ")} → ${category}.` : writes.length ? "Guardado." : "Nota borrada.",
+        learn.length ? 3500 : 2000);
+    }
   } catch (e) {
     showBanner(`No se pudo guardar: ${e.message}`);
   }
+}
+
+// ------------------------------------------------------------ personal rules (your merchant names and words)
+const ruleKey = (r) => r.kind + " " + r.match;
+async function savePersonal(writes, deletes, message) {
+  try {
+    await api.saveRules(writes, deletes);
+    const gone = new Set([...writes, ...deletes].map(ruleKey));
+    personal = [...personal.filter((r) => !gone.has(ruleKey(r))), ...writes];
+    store.set(PKEY, personal); rules = withPersonal(baseRules, personal); reenrich();
+    if (message) showBanner(message, 2500);
+    return true;
+  } catch (e) { showBanner(`No se pudo guardar: ${e.message}`); return false; }
+}
+/** Show `auto` (the name the app derives) as `name` everywhere; an empty name = back to the automatic one. */
+async function renameMerchant(auto, shown, name) {
+  name = name.trim().slice(0, 60);
+  const current = rules.renames?.[auto] ?? "", set = !!name && name !== auto;
+  if ((set ? name : "") === current) return;
+  const ok = await savePersonal(set ? [{ kind: "name", match: auto, value: name }] : [], set ? [] : [{ kind: "name", match: auto }],
+    set ? `Ahora se llama "${name}".` : "Vuelve a su nombre automático.");
+  // a category rule for the whole merchant follows it to its new name
+  const rule = notes[`m:${shown}`], to = set ? name : auto;
+  if (ok && rule && to !== shown) {
+    try {
+      await api.saveNotes([{ id: `m:${to}`, note: null, category: rule.category }], [`m:${shown}`]);
+      const next = { ...notes, [`m:${to}`]: { note: null, category: rule.category } }; delete next[`m:${shown}`];
+      notes = next; store.set(NKEY, notes); reenrich();
+    } catch (e) { showBanner(`No se pudo mover la categoría del comercio: ${e.message}`); }
+  }
+}
+const KIND_TEXT = { name: "Nombre", word: "Palabra", word_in: "Palabra (ingresos)" };
+function renderRuleList() {
+  const list = [...personal].sort((a, b) => a.kind.localeCompare(b.kind) || a.match.localeCompare(b.match, "es"));
+  $("#plist").innerHTML = list.map((r) => `<li><span class="m">${escapeHtml(r.match)}</span>
+      <span class="a"><button type="button" class="iconbtn" data-unrule="${escapeHtml(r.kind)}" data-match="${escapeHtml(r.match)}" aria-label="Quitar ${escapeHtml(r.match)}">✕</button></span>
+      <span class="d">${KIND_TEXT[r.kind]} → ${escapeHtml(r.value)}</span></li>`).join("")
+    || `<li class="empty">Todavía no tenés reglas propias. Cambiale el nombre a un comercio desde uno de sus movimientos,
+        o agregá abajo una palabra que siempre signifique una categoría.</li>`;
+  $("#pCat").innerHTML = `<optgroup label="Gastos">${outCategories().map((c) => `<option value="word:${escapeHtml(c)}">${escapeHtml(c)}</option>`).join("")}</optgroup>
+    <optgroup label="Ingresos">${rules.incomeCategories.map((c) => `<option value="word_in:${escapeHtml(c)}">${escapeHtml(c)}</option>`).join("")}</optgroup>`;
+}
+async function addWordRule() {
+  const match = $("#pWord").value.trim().toLowerCase().slice(0, 40), [kind, ...rest] = $("#pCat").value.split(":"), value = rest.join(":");
+  if (!match) { $("#pWord").focus(); return; }
+  if (await savePersonal([{ kind, match, value }], [], `Listo: "${match}" → ${value}.`)) { $("#pWord").value = ""; renderRuleList(); }
 }
 
 function renderWordList() {
@@ -510,7 +565,7 @@ function wire() {
   $("#settings").addEventListener("close", async () => {
     if ($("#settings").returnValue === "logout" && !DEMO) {
       await api.signOut();
-      try { ["rows", "balance", "recipients", "notes"].forEach((k) => localStorage.removeItem("mpf." + k)); } catch { /* ignore */ }
+      try { ["rows", "balance", "recipients", "notes", "personal"].forEach((k) => localStorage.removeItem("mpf." + k)); } catch { /* ignore */ }
       location.reload();
     }
   });
@@ -524,10 +579,18 @@ function wire() {
   $("#mvRecipient").addEventListener("click", () => { const rk = $("#mvRecipient").dataset.rk; $("#moveSheet").close("cancel"); openNameSheet(rk); });
   $("#moveSheet").addEventListener("close", () => {
     const f = $("#moveSheet"), v = f.returnValue, ctx = { id: f.dataset.id, merchant: f.dataset.merchant, dir: f.dataset.dir };
-    if (v === "save") saveNote(ctx, $("#mvNote").value, $("#mvCategory").value, !$("#mvAllRow").hidden && $("#mvAll").checked);
+    if (v === "save") saveNote(ctx, $("#mvNote").value, $("#mvCategory").value, !$("#mvAllRow").hidden && $("#mvAll").checked)
+      .then(() => { if (!$("#mvNameRow").hidden) return renameMerchant(f.dataset.auto, ctx.merchant, $("#mvName").value); });
     else if (v === "clear") saveNote(ctx, "", "", false);
   });
   $("#moveForm").addEventListener("submit", (e) => { if (e.submitter == null) { e.preventDefault(); $("#moveSheet").close("save"); } }); // Enter = Guardar
+  $("#openRules").addEventListener("click", () => { $("#settings").close(); renderRuleList(); $("#rulesSheet").showModal(); });
+  $("#pAdd").addEventListener("click", addWordRule);
+  $("#pWord").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); addWordRule(); } });
+  $("#plist").addEventListener("click", async (e) => {
+    const b = e.target.closest("[data-unrule]"); if (!b) return;
+    if (await savePersonal([], [{ kind: b.dataset.unrule, match: b.dataset.match }], `Quité "${b.dataset.match}".`)) renderRuleList();
+  });
   $("#openWords").addEventListener("click", () => { $("#settings").close(); renderWordList(); $("#wordsSheet").showModal(); });
   $("#wlist").addEventListener("click", (e) => { const id = e.target.closest("[data-forget]")?.dataset.forget; if (id) forgetWord(id); });
   $("#openRecipients").addEventListener("click", () => { $("#settings").close(); renderRecipientList(); $("#recipientsSheet").showModal(); });
@@ -583,6 +646,7 @@ async function loadRows() {
   try { data = await api.load(); } catch (e) { showBanner(`No se pudieron leer los datos: ${e.message}`); return; }
   const { rows: all, balance: bal, recipients: rec, notes: nts } = data;
   if (rec) { recipients = Object.fromEntries(rec.map((r) => [r.key, { name: r.name, category: r.category }])); store.set(RKEY, recipients); }
+  if (data.rules) { personal = data.rules; store.set(PKEY, personal); rules = withPersonal(baseRules, personal); }
   if (nts) { notes = Object.fromEntries(nts.map((n) => [n.id, { note: n.note ?? "", category: n.category }])); store.set(NKEY, notes); }
   if (!DEMO) {
     if (bal) store.set("balance", bal);

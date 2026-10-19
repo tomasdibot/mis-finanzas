@@ -3,14 +3,15 @@ import { json, nowIso } from "./http.js";
 
 export const PAGE = 1000; // movements per page (keeps each request well inside the free plan's CPU limit)
 
-/** GET /api/state: latest balance, recipient names, notes. */
+/** GET /api/state: latest balance, recipient names, notes, personal rules. */
 export async function state(env) {
-  const [bal, rec, nts] = await env.DB.batch([
+  const [bal, rec, nts, pr] = await env.DB.batch([
     env.DB.prepare("SELECT available, as_of, fetched_at FROM balances ORDER BY as_of DESC LIMIT 1"),
     env.DB.prepare("SELECT key, name, category FROM recipients"),
     env.DB.prepare("SELECT id, note, category FROM notes"),
+    env.DB.prepare("SELECT kind, match, value FROM personal_rules ORDER BY kind, match"),
   ]);
-  return json({ balance: bal.results[0] ?? null, recipients: rec.results, notes: nts.results });
+  return json({ balance: bal.results[0] ?? null, recipients: rec.results, notes: nts.results, rules: pr.results });
 }
 
 /** GET /api/movements?page=N: raw movements, oldest first, PAGE at a time. */
@@ -41,6 +42,23 @@ export async function saveNotes(env, body) {
       ON CONFLICT (id) DO UPDATE SET note = excluded.note, category = excluded.category, updated_at = excluded.updated_at`)
       .bind(w.id, text(w.note, 80), text(w.category, 80), stamp)),
     ...deletes.map((id) => env.DB.prepare("DELETE FROM notes WHERE id = ?1").bind(id)),
+  ];
+  if (stmts.length) await env.DB.batch(stmts);
+  return json({ ok: true });
+}
+
+/** POST /api/rules { writes: [{ kind, match, value }], deletes: [{ kind, match }] } — personal rules. */
+export async function saveRules(env, body) {
+  const writes = Array.isArray(body?.writes) ? body.writes : [], deletes = Array.isArray(body?.deletes) ? body.deletes : [];
+  if (writes.length + deletes.length > 500) return bad("Demasiados cambios juntos.");
+  const okKey = (r) => ["name", "word", "word_in"].includes(r?.kind) && typeof r.match === "string" && r.match.trim() && r.match.length <= 80;
+  if (![...writes, ...deletes].every(okKey) || !writes.every((w) => typeof w.value === "string" && w.value.trim())) return bad("Regla inválida.");
+  const stamp = nowIso();
+  const stmts = [
+    ...writes.map((w) => env.DB.prepare(`INSERT INTO personal_rules (kind, match, value, updated_at) VALUES (?1, ?2, ?3, ?4)
+      ON CONFLICT (kind, match) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`)
+      .bind(w.kind, w.match.trim(), w.value.trim().slice(0, 80), stamp)),
+    ...deletes.map((d) => env.DB.prepare("DELETE FROM personal_rules WHERE kind = ?1 AND match = ?2").bind(d.kind, d.match.trim())),
   ];
   if (stmts.length) await env.DB.batch(stmts);
   return json({ ok: true });

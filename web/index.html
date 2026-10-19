@@ -175,6 +175,8 @@
     <input id="mvNote" type="text" maxlength="80" autocomplete="off" placeholder="Ej.: Café con Ana"></div>
   <p class="note" id="mvGuess"></p>
   <div class="field"><label for="mvCategory">Categoría</label><select id="mvCategory"></select></div>
+  <div class="field" id="mvNameRow"><label for="mvName">Nombre del comercio (para todos sus movimientos)</label>
+    <input id="mvName" type="text" maxlength="60" autocomplete="off"></div>
   <label class="field switch" id="mvAllRow"><span id="mvAllLabel"></span><input type="checkbox" id="mvAll"></label>
   <button type="button" class="btn ghost wide" id="mvRecipient" hidden>Ponerle nombre a este destinatario</button>
   <div class="rowbtns"><button class="btn ghost" value="clear" id="mvClear">Borrar nota</button>
@@ -219,6 +221,18 @@
   <div class="rowbtns"><span></span><button class="btn" value="ok">Listo</button></div>
 </form></dialog>
 
+<!-- personal rules: merchant names and words that pick a category; tap ✕ to remove one -->
+<dialog class="sheet" id="rulesSheet"><form method="dialog" class="in">
+  <h3 tabindex="-1" autofocus>Tus reglas</h3>
+  <p class="note">Son tuyas: se guardan en tu base y las actualizaciones de la app no las tocan.</p>
+  <ul class="mlist wlist" id="plist"></ul>
+  <div class="field"><label for="pWord">Una palabra que siempre significa…</label>
+    <input id="pWord" type="text" maxlength="40" autocomplete="off" placeholder="Ej.: heladería del barrio"></div>
+  <div class="field"><label for="pCat">…esta categoría</label><select id="pCat"></select></div>
+  <button type="button" class="btn ghost wide" id="pAdd">Agregar</button>
+  <div class="rowbtns"><span></span><button class="btn" value="ok">Listo</button></div>
+</form></dialog>
+
 <!-- settings -->
 <dialog class="sheet" id="settings"><form method="dialog" class="in">
   <!-- autofocus on the title: opening a sheet would otherwise focus its first field, and on a phone that pops open
@@ -237,7 +251,8 @@
   <div class="field"><span class="flabel">Transferencias</span>
     <button type="button" class="btn ghost wide" id="openRecipients">Ponerle nombre a los destinatarios</button></div>
   <div class="field"><span class="flabel">Categorías</span>
-    <button type="button" class="btn ghost wide" id="openWords">Palabras aprendidas de tus notas</button></div>
+    <button type="button" class="btn ghost wide" id="openWords">Palabras aprendidas de tus notas</button>
+    <button type="button" class="btn ghost wide" id="openRules">Tus reglas: nombres y palabras</button></div>
   <div class="field"><span class="flabel">Última actualización</span><div class="note" id="syncInfo"></div></div>
   <div class="rowbtns"><button class="btn ghost" id="logout" value="logout">Cerrar sesión</button><button class="btn" value="ok">Listo</button></div>
 </form></dialog>

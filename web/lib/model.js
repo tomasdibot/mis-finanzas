@@ -214,6 +214,8 @@ export function enrich(rows, rules, recipients = {}, notes = {}) {
   const nonCons = new Set(rules.nonConsumption);
   const out = rows.filter((r) => isCompleted(r) && r.direction === "out").map((r) => {
     let { merchant, detail } = merchantOf(r, rules);
+    // the Owner's own name for this merchant (personal rules, lib/personal.js)
+    const merchant_auto = merchant; merchant = rules.renames?.[merchant] ?? merchant;
     // transfers you sent: Mercado Pago doesn't name the recipient; the name is the one you gave (recipients table)
     const isTransfer = r.operation_type === "money_transfer";
     // payouts (to a CVU/alias/CBU at another bank) carry a key too once the report includes the destination account
@@ -234,7 +236,7 @@ export function enrich(rows, rules, recipients = {}, notes = {}) {
       || categorize({ ...r, row_type: "payment", holder_name: r.holder_name || who?.name || "" }, rules, text);
     return {
       id: r.id, date: r.date.slice(0, 10), month: r.month, amount: -Number(r.amount),
-      merchant, detail, category, group: nonCons.has(category) ? "No consumo" : (rules.groups[category] ?? "Otros"),
+      merchant, merchant_auto, detail, category, group: nonCons.has(category) ? "No consumo" : (rules.groups[category] ?? "Otros"),
       consumption: !nonCons.has(category), channel: channelOf(r), method: methodOf(r), refund: r.row_type === "refund",
       recipient_key: key, recipient_named: !!who,
       _group: r.row_type === "payment" ? (r.group_id || "") : "", _method: r.payment_type || r.payment_method || "",
@@ -310,9 +312,10 @@ export function liveBalance(rawRows, snapshot) {
 export function enrichIn(rows, rules, notes = {}) {
   const learned = learnedWords(notes, "in");
   return rows.filter((r) => isCompleted(r) && r.direction === "in" && r.row_type === "payment").map((r) => {
-    const { merchant, detail } = merchantOf(r, rules);
+    const { merchant: merchant_auto, detail } = merchantOf(r, rules);
+    const merchant = rules.renames?.[merchant_auto] ?? merchant_auto;
     const category = categorizeIn(r, rules);
-    const row = { id: r.id, date: r.date.slice(0, 10), month: r.month, amount: Number(r.amount), merchant, detail,
+    const row = { id: r.id, date: r.date.slice(0, 10), month: r.month, amount: Number(r.amount), merchant, merchant_auto, detail,
                   category, group: category, consumption: true, channel: channelOf(r), refund: false };
     const noted = withNote(row, notes, rules.keywordsIn ?? [], null, rules, learned);
     return { ...noted, group: noted.category };

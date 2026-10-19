@@ -2,7 +2,7 @@
 // Everything under /api/ except health and sign-in needs the Owner's session (src/auth.js).
 import { json } from "./http.js";
 import { login, callback, logout, signedIn } from "./auth.js";
-import { state, movements, syncLog, saveNotes, saveRecipient } from "./data.js";
+import { state, movements, syncLog, saveNotes, saveRecipient, saveRules } from "./data.js";
 import { cronStep, manualStep, collectReports } from "./sync.js";
 
 const GET = {
@@ -14,6 +14,7 @@ const GET = {
 const POST = {
   "/api/notes": (req, env, url, body) => saveNotes(env, body),
   "/api/recipients": (req, env, url, body) => saveRecipient(env, body),
+  "/api/rules": (req, env, url, body) => saveRules(env, body),
   // one step of the sync; the app repeats it until done (each request gets its own CPU allowance)
   "/api/sync": async (req, env) => { const r = await manualStep(env); return json(r, r.ok ? 200 : 502); },
   "/api/sync/reports": async (req, env) => json(await collectReports(env)),
