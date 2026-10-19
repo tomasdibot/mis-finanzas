@@ -1,6 +1,6 @@
 // Service worker: the app shell loads instantly and works offline (showing the last data it saw).
 // Data always comes fresh from the Worker (/api/*) when there is a connection; those calls are never cached here.
-const VERSION = "mf-v1";
+const VERSION = "mf-v2";
 const SHELL = ["./", "index.html", "styles.css", "app.js", "rules.js", "lib/api.js", "lib/model.js", "lib/charts.js",
   "lib/icons.js", "lib/brands.js", "lib/breakdown.js", "lib/demo.js", "manifest.webmanifest", "icons/app-icon-192.png"];
 

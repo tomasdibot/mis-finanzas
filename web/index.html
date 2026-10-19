@@ -64,12 +64,14 @@
   <section id="login" class="login" hidden>
     <svg class="logo loginlogo" viewBox="0 0 64 64" aria-hidden="true"><rect class="tile" width="64" height="64" rx="14.4"/><path class="b b1" d="M10,39L19,34.05V45.4Q19,47 17.4,47H11.6Q10,47 10,45.4Z"/><path class="b b2" d="M23.5,31.58L32.5,26.63V45.4Q32.5,47 30.9,47H25.1Q23.5,47 23.5,45.4Z"/><path class="b b3" d="M37,24.15L46,19.2V45.4Q46,47 44.4,47H38.6Q37,47 37,45.4Z"/><circle class="dot" cx="52.5" cy="15.6" r="3.7"/></svg>
     <h1>Mis finanzas</h1>
-    <p>Muy pronto vas a poder entrar con tu cuenta de Mercado Pago.</p>
+    <p>Entrá con tu cuenta de Mercado Pago.</p>
     <form id="loginForm" action="./" method="get">
+      <a class="btn" id="mpLogin" href="/api/auth/login">Entrar con Mercado Pago</a>
       <input type="hidden" name="demo" value="">
-      <button class="btn">Ver la demostración</button>
+      <button class="btn ghost">Ver la demostración (datos inventados)</button>
     </form>
-    <div class="note" id="loginNote">La demostración usa datos inventados.</div>
+    <div class="note" id="loginNote">La primera vez que entrás, esta app queda a nombre de tu cuenta de Mercado Pago:
+      después nadie más puede abrirla.</div>
   </section>
 
   <!-- ============ app ============ -->

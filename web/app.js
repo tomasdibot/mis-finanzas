@@ -647,7 +647,16 @@ function showBanner(text, ms) {
 // ------------------------------------------------------------ auth
 function showLogin() {
   $("#login").hidden = false; $("#app").hidden = true; hideSplash();
-  // "Entrar con Mercado Pago" arrives in phase 2 (ADR 0002); until then only the demo can be opened
+  // "Entrar con Mercado Pago" (ADR 0002) is a plain link to the Worker; it comes back here with ?login_error if refused
+  const err = new URLSearchParams(location.search).get("login_error");
+  const why = {
+    denied: "No se completó el ingreso en Mercado Pago. Probá de nuevo.",
+    state: "El ingreso tardó demasiado o se abrió en otra pestaña. Probá de nuevo.",
+    not_owner: "Esta app solo acepta la cuenta de Mercado Pago dueña de la app de Mercado Pago con la que se instaló.",
+    config: "Falta configurar la app de Mercado Pago de esta instalación (ver la guía de instalación).",
+    mp: "Mercado Pago no respondió bien. Probá de nuevo en unos minutos.",
+  }[err];
+  if (why) { $("#loginNote").textContent = why; history.replaceState(null, "", location.pathname); }
 }
 async function startApp() {
   $("#login").hidden = true; $("#app").hidden = false;
@@ -679,6 +688,7 @@ async function main() {
   setTimeout(() => { document.documentElement.classList.add("ready"); hideSplash(true); }, 6000); // never stuck behind the splash
   if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(() => {});
   if (DEMO) return startApp();
-  if (await api.session()) startApp(); else showLogin();
+  // offline: open with the last data seen (the session is checked again on the next request)
+  if (await api.session().catch(() => "offline")) startApp(); else showLogin();
 }
 main();
