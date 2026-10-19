@@ -26,7 +26,7 @@ La app lee tus movimientos con un permiso que le das vos, a través de una "apli
 
 1. Tocá este botón:
 
-   [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url={{REPO_URL}})
+   [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/tomasdibot/mis-finanzas)
 
 2. Entrá con tu cuenta de Cloudflare y conectá tu cuenta de GitHub cuando te lo pida.
 3. En la página de configuración:

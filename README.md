@@ -8,7 +8,7 @@ cuenta de Cloudflare: nadie más ve tus datos. Gratis. Solo Argentina.
 - Tus notas, nombres y reglas son tuyos y las actualizaciones no los tocan.
 - Solo hechos: sumas y cuentas, sin consejos ni predicciones.
 
-[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url={{REPO_URL}})
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/tomasdibot/mis-finanzas)
 
 **Instalación paso a paso: [LEEME.md](LEEME.md)** (unos 15 minutos, todo con clics).
 
