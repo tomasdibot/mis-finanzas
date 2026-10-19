@@ -1,4 +1,4 @@
-# Secrets of your own Mercado Pago app (Mercado Pago Developers > Tus integraciones > tu app > Credenciales de producción).
-# The "Deploy to Cloudflare" button asks for them; locally, copy this file to .dev.vars (never committed).
+# The app's Mercado Pago developer app (Tus integraciones > Credenciales de producción). For local `wrangler dev`:
+# copy this file to .dev.vars (never committed).
 MP_CLIENT_ID=
 MP_CLIENT_SECRET=

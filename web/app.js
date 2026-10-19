@@ -1,4 +1,4 @@
-// Mis finanzas — app. Reads raw movements through lib/api.js (only the Owner can), interprets them with rules.js,
+// Mis finanzas — app. Reads raw movements through lib/api.js (from this device's Profile), interprets them with rules.js,
 // and shows: the month in four numbers, spending per month, every category of the month (amount + how many
 // times), and — tapping a category — everything that makes it up. Facts only: sums and counts, no advice.
 import baseRules from "./rules.js";
@@ -6,6 +6,7 @@ import { withPersonal } from "./lib/personal.js";
 import { enrich, enrichIn, liveBalance, keywordCategory, learnedWords, learnedCategory, wordsToLearn } from "./lib/model.js";
 import { monthlyBars, horizontalBars, categoryBars, categoryTable } from "./lib/charts.js";
 import { api, DEMO } from "./lib/api.js";
+import { enableLock, unlock } from "./lib/lock.js";
 import { iconSvg } from "./lib/icons.js";
 import { brandOf, brandSvg } from "./lib/brands.js";
 import { DIMS, dimsFor, valueLook, lookHtml, groupRows } from "./lib/breakdown.js";
@@ -23,13 +24,12 @@ const short = (v) => {
   return `${sign}$${nf.format(Math.round(a))}`;
 };
 const store = {
-  get: (k, d) => { try { const v = localStorage.getItem("mpf." + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
-  set: (k, v) => { try { localStorage.setItem("mpf." + k, JSON.stringify(v)); } catch { /* private mode */ } },
+  get: (k, d) => { if (k == null) return d; try { const v = localStorage.getItem("mpf." + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
+  set: (k, v) => { if (k == null) return; try { localStorage.setItem("mpf." + k, JSON.stringify(v)); } catch { /* private mode */ } },
 };
-// the Template's rules + the Owner's personal rules (merchant names, words), from their database
-const PKEY = DEMO ? "demoPersonal" : "personal";   // demo rules never mix with the real ones
+// the shared rules + the user's personal rules (merchant names, words), from their Profile
+const PKEY = DEMO ? "demoPersonal" : null;   // demo rules only; a Profile's rules live in its own storage
 let personal = store.get(PKEY, []);
-let ownerSettings = DEMO ? {} : store.get("settings", {});   // { github_repo }
 let rules = withPersonal(baseRules, personal);
 // a category's own color (rules.tints) for its icon, as an inline style attribute (or nothing)
 const tintStyle = (cat) => (rules.tints?.[cat] ? ` style="--t:${rules.tints[cat]}"` : "");
@@ -201,7 +201,7 @@ function moveLi(r, withCategory = true) {
 }
 
 // ------------------------------------------------------------ notes (what each movement was, in your words)
-const NKEY = DEMO ? "demoNotes" : "notes";
+const NKEY = DEMO ? "demoNotes" : null;
 let notes = store.get(NKEY, {});   // { movementId | "m:<merchant>": { note, category } }
 function reenrich() { rowsOut = enrich(rawRows, rules, recipients, notes); rowsIn = enrichIn(rawRows, rules, notes); fillFilters(); render(); }
 const outCategories = () => [...new Set([...Object.keys(rules.groups), ...rules.nonConsumption])].sort((a, b) => a.localeCompare(b, "es"));
@@ -324,7 +324,7 @@ async function forgetWord(id) {
 }
 
 // ------------------------------------------------------------ recipients (names you give to transfer recipients)
-const RKEY = DEMO ? "demoRecipients" : "recipients"; // demo names never mix with the real ones
+const RKEY = DEMO ? "demoRecipients" : null; // demo names never mix with the real ones
 let recipients = store.get(RKEY, {});   // { key: { name, category } }
 function recipientStats() {
   const m = new Map();
@@ -561,14 +561,13 @@ function wire() {
   $("#csv").addEventListener("click", downloadCsv);
 
   $("#openSettings").addEventListener("click", () => { showVersion(); $("#settings").showModal(); });
-  $("#updateApp").addEventListener("click", updateApp);
+  $("#lockToggle").addEventListener("change", toggleLock);
   $("#theme").addEventListener("change", (e) => { store.set("theme", e.target.value); applyTheme(); });
   $("#palette").addEventListener("click", (e) => { const p = e.target.closest("[data-p]")?.dataset.p; if (!p) return; store.set("palette", p); applyTheme(); });
   $("#settings").addEventListener("close", async () => {
     if ($("#settings").returnValue === "logout" && !DEMO) {
-      await api.signOut();
-      try { ["rows", "balance", "recipients", "notes", "personal", "settings"].forEach((k) => localStorage.removeItem("mpf." + k)); } catch { /* ignore */ }
-      location.reload();
+      await api.signOut();   // the data stays on this device for the next sign-in with this account
+      location.replace(location.pathname);
     }
   });
   $("#refresh").addEventListener("click", syncNow);
@@ -654,32 +653,46 @@ async function importData(file) {
 async function deleteData() {
   try {
     await api.deleteAll();
-    try { Object.keys(localStorage).filter((k) => k.startsWith("mpf.") && !/theme|palette|range/.test(k)).forEach((k) => localStorage.removeItem(k)); } catch { /* ignore */ }
     location.replace(location.pathname);
   } catch (e) { showBanner(`No se pudo borrar: ${e.message}`); }
 }
 
-// ------------------------------------------------------------ version and updates (a GitHub "Run workflow" in the Owner's copy)
+// ------------------------------------------------------------ version (new versions reach everyone by themselves)
 async function showVersion() {
   const h = await api.health().catch(() => ({}));
-  $("#versionInfo").textContent = h.version ? `Versión ${h.version}` : "";
-  $("#ghRepo").value = ownerSettings.github_repo ?? "";
-  if (h.template) { $("#releaseNotes").href = `https://github.com/${h.template}/releases`; $("#releaseNotes").hidden = false; }
+  $("#versionInfo").textContent = h.version ? `Versión ${h.version}. Las versiones nuevas llegan solas.` : "";
+  $("#lockRow").hidden = DEMO;
+  $("#lockToggle").checked = lockOn();
 }
-async function updateApp() {
-  const typed = $("#ghRepo").value.trim();
-  if (!typed) { showBanner("Escribí primero la dirección de tu copia en GitHub.", 3000); $("#ghRepo").focus(); return; }
-  // open the page right away (a popup opened after waiting for the network is blocked by phones)
-  const win = window.open("about:blank", "_blank");
-  try {
-    let repo = typed;
-    if (!DEMO && typed !== ownerSettings.github_repo) {
-      repo = (await api.saveSettings({ github_repo: typed })).github_repo;
-      ownerSettings = { ...ownerSettings, github_repo: repo }; store.set("settings", ownerSettings); $("#ghRepo").value = repo;
-    }
-    const url = `https://github.com/${repo.replace(/^https?:..(www.)?github.com./i, "")}/actions/workflows/actualizar.yml`;
-    if (win) win.location.href = url; else location.href = url;
-  } catch (e) { win?.close(); showBanner(`No se pudo: ${e.message}`); }
+
+// ------------------------------------------------------------ optional lock (fingerprint/face/PIN of this device) and backups
+const lockOn = () => !DEMO && !!store.get("lock", null);
+async function toggleLock(e) {
+  if (e.target.checked) {
+    try { store.set("lock", await enableLock()); showBanner("Listo: la app va a pedir tu huella, cara o PIN al abrirse.", 3500); }
+    catch (err) { e.target.checked = false; showBanner(`No se pudo activar: ${err.message}`, 4000); }
+  } else { store.set("lock", null); showBanner("Bloqueo desactivado.", 2500); }
+}
+/** Shows the lock screen until the device confirms it's you. */
+async function unlockScreen() {
+  hideSplash(); $("#app").hidden = true; $("#login").hidden = false; $("#loginStart").hidden = true; $("#unlockRow").hidden = false;
+  return new Promise((resolve) => {
+    const go = async () => {
+      try { await unlock(store.get("lock", null)); $("#unlockRow").hidden = true; $("#loginStart").hidden = false; resolve(true); startApp(); }
+      catch { $("#loginNote").textContent = "No se pudo confirmar que sos vos. Tocá Desbloquear para probar de nuevo."; }
+    };
+    $("#unlockBtn").onclick = go;
+    go();
+  }).then(() => false);
+}
+/** Once a month, offer a backup: the data lives only on this device. */
+function backupNudge() {
+  const last = store.get("backupNudge", 0), MONTH = 30 * 86400e3;
+  if (!rawRows.length) return;
+  if (!last) { store.set("backupNudge", Date.now()); return; }   // not on the very first day
+  if (Date.now() - last < MONTH) return;
+  store.set("backupNudge", Date.now());
+  showBanner("Tus datos están solo en este dispositivo. Ajustes → Tus datos → Descargar una copia de seguridad.");
 }
 
 // ------------------------------------------------------------ cloud
@@ -705,37 +718,35 @@ function setData(raw, bal) {
   fillFilters(); render();
 }
 async function loadRows() {
-  // demo: invented data only, never the cached real rows (and demo names/notes never mix with the real ones)
-  if (!DEMO) { const cached = store.get("rows", null); if (cached) setData(cached, store.get("balance", null)); } // instant, offline
   let data;
-  try { data = await api.load(); } catch (e) { showBanner(`No se pudieron leer los datos: ${e.message}`); return; }
+  try { data = await api.load(); } catch (e) { if (e.signIn) { showLogin(); return; } showBanner(`No se pudieron leer los datos: ${e.message}`); return; }
   const { rows: all, balance: bal, recipients: rec, notes: nts } = data;
   if (rec) { recipients = Object.fromEntries(rec.map((r) => [r.key, { name: r.name, category: r.category }])); store.set(RKEY, recipients); }
-  if (data.settings) { ownerSettings = data.settings; store.set("settings", ownerSettings); }
   if (data.rules) { personal = data.rules; store.set(PKEY, personal); rules = withPersonal(baseRules, personal); }
   if (nts) { notes = Object.fromEntries(nts.map((n) => [n.id, { note: n.note ?? "", category: n.category }])); store.set(NKEY, notes); }
-  if (!DEMO) {
-    if (bal) store.set("balance", bal);
-    // first visit after the Claim: the first download (13 months) starts by itself, once
-    if (!all.length && !firstSync) { firstSync = true; setTimeout(syncNow, 0); }
-    store.set("rows", all);
-  }
   setData(all, bal ?? null);
 }
-let syncing = false, firstSync = false;
-async function syncNow() {
+let syncing = false;
+/** Bring this Profile up to date with Mercado Pago. quiet: no progress messages (a normal opening). */
+async function syncNow({ quiet = false } = {}) {
   if (syncing) return;
   if (DEMO) { await loadRows(); showBanner("En modo demostración no hay nada que actualizar.", 2500); return; }
   syncing = true;
   const btn = $("#refresh"); btn.classList.add("spin"); btn.disabled = true;
-  showBanner("Actualizando con Mercado Pago…");
+  if (!quiet) showBanner("Actualizando con Mercado Pago…");
+  let shown = rawRows.length > 0;
   try {
-    const MES_ = (key) => monthName(key, true);
-    const data = await api.sync((s) => showBanner(`Descargando de Mercado Pago: ${MES_(s.month)} (${Math.round(s.progress * 100)} %)…`));
+    const data = await api.sync(async (s) => {
+      // the first months appear as soon as they're in; the older ones keep loading while the app is open
+      if (s.firstMonths && !shown) { shown = true; await loadRows(); }
+      if (!quiet || !shown) showBanner(`Descargando de Mercado Pago: ${monthName(s.month, true)} (${Math.round(s.progress * 100)} %)…`);
+    });
+    if (data?.signIn) { showLogin("expired"); return; }
     if (!data?.ok) throw new Error(data?.error || "error");
     await loadRows();
-    showBanner(data.note ? `Movimientos al día. ${data.note}` : "Al día: movimientos actualizados.", 3500);
-    // Mercado Pago's balance report finishes in the background (~1 min): pick it up quietly
+    if (!quiet) showBanner(data.note ? `Movimientos al día. ${data.note}` : "Al día: movimientos actualizados.", 3500);
+    else if (!$("#banner").hidden && /Descargando/.test($("#banner").textContent)) $("#banner").hidden = true;
+    // Mercado Pago's balance report finishes in the background (~1 min): pick it up quietly while the app is open
     [60e3, 120e3].forEach((ms) => setTimeout(() => api.collectReports().then(loadRows).catch(() => {}), ms));
   } catch (e) { showBanner(`No se pudo actualizar: ${e.message}`); }
   finally { btn.classList.remove("spin"); btn.disabled = false; syncing = false; loadStatus(); }
@@ -777,15 +788,16 @@ function showBanner(text, ms) {
 }
 
 // ------------------------------------------------------------ auth
-function showLogin() {
-  $("#login").hidden = false; $("#app").hidden = true; hideSplash();
-  // "Entrar con Mercado Pago" (ADR 0002) is a plain link to the Worker; it comes back here with ?login_error if refused
-  const err = new URLSearchParams(location.search).get("login_error");
+function showLogin(reason) {
+  $("#login").hidden = false; $("#app").hidden = true; $("#banner").hidden = true; hideSplash();
+  // "Entrar con Mercado Pago" is a plain link to the Relay; it comes back here with ?login_error if something failed
+  const err = reason || new URLSearchParams(location.search).get("login_error");
   const why = {
     denied: "No se completó el ingreso en Mercado Pago. Probá de nuevo.",
     state: "El ingreso tardó demasiado o se abrió en otra pestaña. Probá de nuevo.",
-    not_owner: "Esta app solo acepta la cuenta de Mercado Pago dueña de la app de Mercado Pago con la que se instaló.",
-    config: "Falta configurar la app de Mercado Pago de esta instalación (ver la guía de instalación).",
+    config: "La app no está bien configurada en este momento. Probá de nuevo más tarde.",
+    device: "Este navegador no dejó guardar tu permiso (¿ventana privada?). Probá en una ventana normal.",
+    expired: "Tu permiso de Mercado Pago venció: entrá de nuevo para seguir actualizando.",
     mp: "Mercado Pago no respondió bien. Probá de nuevo en unos minutos.",
   }[err];
   if (why) { $("#loginNote").textContent = why; history.replaceState(null, "", location.pathname); }
@@ -793,8 +805,10 @@ function showLogin() {
 async function startApp() {
   $("#login").hidden = true; $("#app").hidden = false;
   if (DEMO) $("#updated").textContent = "demo (datos inventados)";
-  try { await loadRows(); } finally { hideSplash(); } // the splash leaves once the fresh data is drawn (or failed)
+  try { await loadRows(); } finally { hideSplash(); } // the splash leaves once the data is drawn (or failed)
   await loadStatus();
+  // nothing updates while the app is closed (ADR 0003): every opening brings Mercado Pago up to date
+  if (!DEMO) { await syncNow({ quiet: rawRows.length > 0 }); backupNudge(); }
 }
 
 // The app never zooms: Safari on iPhone ignores the viewport's user-scalable=no, so pinches are stopped here too
@@ -821,6 +835,8 @@ async function main() {
   if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js").catch(() => {});
   if (DEMO) return startApp();
   // offline: open with the last data seen (the session is checked again on the next request)
-  if (await api.session().catch(() => "offline")) startApp(); else showLogin();
+  if (!(await api.session().catch(() => null))) return showLogin();
+  if (lockOn() && !(await unlockScreen())) return;
+  startApp();
 }
 main();

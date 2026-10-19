@@ -1,49 +1,42 @@
 # mis-finanzas
 
-Personal-finance app that reads one person's Mercado Pago account and shows where their money goes. It is
-distributed as a self-hosted template: every person runs their own copy.
+Personal-finance app that reads a person's Mercado Pago account and shows where their money goes. One shared app
+at one address; each person's data lives only on their own devices (ADR 0003).
 
 ## Language
 
-**Owner**:
-The one person a **Deployment** belongs to; the only one who can sign in to it and read its data.
-_Avoid_: user, customer, tenant
-
-**Deployment**:
-One person's own running copy of the app (their own database, backend and web address), set up from the shared
-**Template**. Holds the data of exactly one **Mercado Pago account**.
-_Avoid_: instance, site, project
-
-**Template**:
-The shared, publishable source that anyone can turn into their own **Deployment**. Contains no one's data or
-personal rules.
-_Avoid_: repo, product
+**User**:
+A person who signs in with their **Mercado Pago account**. Anyone can be one; the app holds nothing of theirs.
+_Avoid_: owner, customer, tenant
 
 **Mercado Pago account**:
-The **Owner**'s Mercado Pago account whose movements the **Deployment** reads. One per **Deployment**.
+The **User**'s Mercado Pago account whose movements the app reads.
 _Avoid_: MP user, wallet
 
-**Claim**:
-The first sign-in to a new **Deployment**, which binds it to its **Owner** for good. Only the
-**Mercado Pago account** that owns the Deployment's Mercado Pago developer app can **Claim** it or sign in later.
+**Profile**:
+Everything one **Mercado Pago account** has on one device: its permission, movements, balances, notes, recipient
+names and **Personal rules**. A device can hold several; each only ever shows its own.
+_Avoid_: account (ambiguous), local data
+
+**Relay**:
+The server part of the app. It swaps the sign-in code for a permission, renews it, and forwards the balance report
+calls Mercado Pago won't take from a browser. It stores and logs nothing.
+_Avoid_: backend, server (when meaning storage)
 
 **Personal rules**:
-The **Owner**'s own merchant names, categories, recipient names and learned words. They live in the
-**Deployment**'s data, never in the **Template**, and **Template** updates never overwrite them.
-_Avoid_: config, rules.js
+The **User**'s own merchant names and words that pick a category. They live in the **Profile**, never in the shared
+`web/rules.js`, and app updates never change them.
+_Avoid_: config
 
-**Release**:
-A published version of the **Template**. An **Owner** chooses when to apply a **Release** to their
-**Deployment**; nothing updates by itself.
-_Avoid_: auto-update, upgrade
+**Backup**:
+A file the **User** downloads with their **Profile** (without the permission) to keep or move to another device.
 
 ## Relationships
 
-- A **Template** produces many **Deployments**; each **Deployment** has exactly one **Owner** and one
-  **Mercado Pago account**.
-- No **Deployment** can read another's data, and the **Template** author holds none of it.
+- One app serves many **Users**; each device keeps one **Profile** per **Mercado Pago account** signed in there.
+- No **Profile** can see another's data, and the **Relay** keeps none.
 
 ## Flagged ambiguities
 
-- "users" (2026-10-17) meant other people running the app — resolved: each is the **Owner** of their own
-  **Deployment**, not an account inside a shared service.
+- "Deployment", "Owner", "Claim", "Template" and "Release" (ADR 0001/0002, 2026-10-17/18) belong to the retired
+  self-hosted model; superseded by ADR 0003 on 2026-10-19.

@@ -64,14 +64,17 @@
   <section id="login" class="login" hidden>
     <svg class="logo loginlogo" viewBox="0 0 64 64" aria-hidden="true"><rect class="tile" width="64" height="64" rx="14.4"/><path class="b b1" d="M10,39L19,34.05V45.4Q19,47 17.4,47H11.6Q10,47 10,45.4Z"/><path class="b b2" d="M23.5,31.58L32.5,26.63V45.4Q32.5,47 30.9,47H25.1Q23.5,47 23.5,45.4Z"/><path class="b b3" d="M37,24.15L46,19.2V45.4Q46,47 44.4,47H38.6Q37,47 37,45.4Z"/><circle class="dot" cx="52.5" cy="15.6" r="3.7"/></svg>
     <h1>Mis finanzas</h1>
-    <p>Entrá con tu cuenta de Mercado Pago.</p>
+    <p>Tus gastos e ingresos de Mercado Pago, gratis.</p>
     <form id="loginForm" action="./" method="get">
-      <a class="btn" id="mpLogin" href="/api/auth/login">Entrar con Mercado Pago</a>
-      <input type="hidden" name="demo" value="">
-      <button class="btn ghost">Ver la demostración (datos inventados)</button>
+      <div id="loginStart">
+        <a class="btn" id="mpLogin" href="/api/auth/login">Entrar con Mercado Pago</a>
+        <input type="hidden" name="demo" value="">
+        <button class="btn ghost">Ver la demostración (datos inventados)</button>
+      </div>
+      <div id="unlockRow" hidden><button type="button" class="btn" id="unlockBtn">Desbloquear</button></div>
     </form>
-    <div class="note" id="loginNote">La primera vez que entrás, esta app queda a nombre de tu cuenta de Mercado Pago:
-      después nadie más puede abrirla.</div>
+    <div class="note" id="loginNote">Tus datos quedan solo en este dispositivo: nadie más los guarda ni los ve.
+      Al entrar aceptás esto. <a href="privacidad.html">Cómo cuidamos tus datos</a></div>
   </section>
 
   <!-- ============ app ============ -->
@@ -236,9 +239,9 @@
 <!-- delete everything: typing BORRAR confirms it -->
 <dialog class="sheet" id="deleteSheet"><form method="dialog" class="in" id="deleteForm">
   <h3 tabindex="-1" autofocus>Borrar todos tus datos</h3>
-  <p class="note">Se borran de esta app tus movimientos, saldos, notas, nombres y reglas, y el permiso de Mercado Pago.
-    Tu cuenta de Mercado Pago no cambia. Si querés, descargá antes una copia de seguridad.
-    Después, la próxima persona que entre con la cuenta dueña de la app de Mercado Pago empieza de cero.</p>
+  <p class="note">Se borran de este dispositivo tus movimientos, saldos, notas, nombres y reglas, y el permiso de
+    Mercado Pago. No hay otra copia en ningún lado: si querés, descargá antes una copia de seguridad.
+    Tu cuenta de Mercado Pago no cambia. Si volvés a entrar, la app descarga tus movimientos de nuevo.</p>
   <div class="field"><label for="delConfirm">Para confirmar, escribí BORRAR</label>
     <input id="delConfirm" type="text" autocomplete="off" autocapitalize="characters"></div>
   <div class="rowbtns"><span></span><span><button class="btn ghost" value="cancel">Cancelar</button>
@@ -272,12 +275,8 @@
     <button type="button" class="btn ghost wide" id="openDelete">Borrar todos mis datos</button></div>
   <div class="field"><span class="flabel">Versión de la app</span>
     <div class="note" id="versionInfo"></div>
-    <label class="note" for="ghRepo">Tu copia en GitHub (la que creó el botón de instalación), por ejemplo <b>tu-usuario/mis-finanzas</b>:</label>
-    <input id="ghRepo" type="text" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="tu-usuario/mis-finanzas">
-    <button type="button" class="btn ghost wide" id="updateApp">Actualizar la app</button>
-    <p class="note">Se abre tu copia en GitHub: tocá <b>Run workflow</b> y después el botón verde <b>Run workflow</b>.
-      En unos minutos la app queda actualizada. Tus datos y tus reglas no cambian.
-      <a id="releaseNotes" href="#" target="_blank" rel="noopener" hidden>Ver las novedades</a></p></div>
+    <a class="note" href="privacidad.html">Cómo cuidamos tus datos</a></div>
+  <label class="field switch" id="lockRow"><span>Pedir huella, cara o PIN al abrir la app</span><input type="checkbox" id="lockToggle"></label>
   <div class="field"><span class="flabel">Última actualización</span><div class="note" id="syncInfo"></div></div>
   <div class="rowbtns"><button class="btn ghost" id="logout" value="logout">Cerrar sesión</button><button class="btn" value="ok">Listo</button></div>
 </form></dialog>

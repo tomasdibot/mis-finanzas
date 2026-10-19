@@ -1,5 +1,0 @@
-{
-  "repo": "tomasdibot/mis-finanzas",
-  "owned": ["src", "web", "migrations", "tests", "scripts", "docs", "package.json", "package-lock.json", "template.json",
-    "README.md", "LEEME.md", "CLAUDE.md", "CONTEXT.md", ".gitignore"]
-}

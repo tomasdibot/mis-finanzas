@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: superseded by 0003
 ---
 
 # Mercado Pago login is the Owner's identity

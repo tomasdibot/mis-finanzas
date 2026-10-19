@@ -1,96 +1,113 @@
-// The app's only door to its data. In demo mode (?demo in the address) everything is invented (lib/demo.js) and
-// nothing leaves the browser. Otherwise every call goes to this Deployment's own Worker (/api/*), which answers
-// only its signed-in Owner (ADR 0002). The Mercado Pago token never comes to the browser.
+// The app's only door to its data. Everything is in this device's Profile (lib/store.js, ADR 0003); Mercado Pago is
+// read from here (lib/sync.js) and the Relay is only used for sign-in, renewals and the balance report.
+// Demo mode (?demo in the address): invented data (lib/demo.js), nothing stored, nothing sent anywhere.
 import { demoRows, demoBalance } from "./demo.js";
+import { session } from "./session.js";
+import { createSync } from "./sync.js";
 
 export const DEMO = typeof location !== "undefined" && new URLSearchParams(location.search).has("demo");
+export const FORMAT = "mis-finanzas", VERSION = 1;
+const BACKUP_TABLES = ["personal_rules", "recipients", "notes", "ml_categories", "balances", "movements"];
 
-async function call(path, body) {
-  const r = await fetch(path, body === undefined ? { cache: "no-store" }
-    : { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
-  const data = await r.json().catch(() => ({}));
-  if (r.status === 401) { location.reload(); throw new Error("Tenés que entrar de nuevo."); } // back to the sign-in
-  if (!r.ok) throw new Error(data.error || `error ${r.status}`);
-  return data;
+let profile = null, sync = null;
+async function open() {
+  if (profile) return profile;
+  profile = await session().current();
+  if (!profile) { const e = new Error("Tenés que entrar con Mercado Pago."); e.signIn = true; throw e; }
+  sync = createSync({ profile, token: () => session().accessToken(profile) });
+  return profile;
 }
 
 export const api = {
-  /** Is the Owner signed in? Demo: always. */
-  async session() {
-    if (DEMO) return { demo: true };
-    const r = await fetch("/api/session", { cache: "no-store" }).catch(() => null);
-    if (r?.ok) return {};
-    if (!r) throw new Error("Sin conexión.");
-    return null;
-  },
-  /** Raw movements, latest verified balance, recipient names and notes. */
+  /** Is someone signed in on this device? (Demo: always.) */
+  async session() { return DEMO ? { demo: true } : (await session().current()) ? {} : null; },
+  /** Raw movements, latest balance, recipient names, notes and personal rules of this Profile. */
   async load() {
     if (DEMO) return { rows: demoRows(), balance: demoBalance(), recipients: null, notes: null, rules: null };
-    const st = await call("/api/state"), rows = [];
-    for (let page = 0; ; page++) {
-      const r = await call(`/api/movements?page=${page}`);
-      rows.push(...r.rows);
-      if (!r.more) break;
-    }
-    return { rows, balance: st.balance, recipients: st.recipients, notes: st.notes, rules: st.rules, settings: st.settings };
+    const p = await open();
+    const [rows, balances, recipients, notes, rules] = await Promise.all(
+      ["movements", "balances", "recipients", "notes", "personal_rules"].map((t) => p.all(t)));
+    rows.sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
+    const balance = balances.sort((a, b) => b.as_of.localeCompare(a.as_of))[0] ?? null;
+    return { rows, balance, recipients, notes, rules };
   },
   /** The last sync runs, newest first: [{ ok, finished_at, rows, detail }]. */
-  async syncLog() { return DEMO ? [] : (await call("/api/sync-log")).runs; },
-  /** Sync with Mercado Pago now: one small step per request until done. onStep({ month, progress }) reports progress. */
-  async sync(onStep = () => {}) {
-    if (DEMO) return { ok: true };
-    for (let i = 0; i < 100; i++) {
-      const r = await call("/api/sync", {});
-      if (r.done || r.idle) return r;
+  async syncLog() { if (DEMO) return []; await open(); return sync.log(); },
+  /**
+   * Sync with Mercado Pago now, step by step until done. onStep(result) after each step (progress, firstMonths).
+   * Returns the last result; { ok: false, signIn: true } means the permission must be renewed by signing in.
+   */
+  async sync(onStep = () => {}, opts) {
+    if (DEMO) return { ok: true, done: true };
+    await open();
+    for (let i = 0; i < 200; i++) {
+      const r = await sync.step(opts);
+      if (!r.ok || r.done) return r;
       onStep(r);
     }
-    return { ok: true };
+    return { ok: true, done: false };
   },
   /** Pick up the balance report Mercado Pago generates in the background after a sync. */
-  async collectReports() { if (!DEMO) await call("/api/sync/reports", {}); },
-  /** Upsert notes ({ id, note, category }) and delete notes by id. Demo: kept only in this browser. */
-  async saveNotes(writes, deletes) { if (!DEMO) await call("/api/notes", { writes, deletes }); },
-  /** Name a transfer recipient (empty name = forget the name). Demo: kept only in this browser. */
-  async saveRecipient(key, name, category) { if (!DEMO) await call("/api/recipients", { key, name, category }); },
-  /** Personal rules: upsert [{ kind, match, value }], delete [{ kind, match }]. Demo: kept only in this browser. */
-  async saveRules(writes, deletes) { if (!DEMO) await call("/api/rules", { writes, deletes }); },
-  /** The Owner's backup: everything but the Mercado Pago token and sessions (src/backup.js). */
-  async exportBackup() {
-    const head = { format: "mis-finanzas", version: 1, exported_at: new Date().toISOString() };
-    if (DEMO) return { ...head, movements: demoRows(), balances: [], recipients: [], notes: [], personal_rules: [], ml_categories: [], settings: {} };
-    const meta = await call("/api/export/meta"), movements = [];
-    for (let page = 0; ; page++) {
-      const r = await call(`/api/movements?page=${page}`);
-      movements.push(...r.rows.map(({ h, ...row }) => row));
-      if (!r.more) break;
-    }
-    return { ...head, ...meta, movements };
+  async collectReports() { if (!DEMO) { await open(); await sync.collectReports(); } },
+  async saveNotes(writes, deletes) {
+    if (DEMO) return;
+    const p = await open(), stamp = new Date().toISOString();
+    await p.put("notes", writes.map((w) => ({ id: w.id, note: w.note ?? null, category: w.category ?? null, updated_at: stamp })));
+    await p.del("notes", deletes);
   },
-  /** Restore a backup in small chunks (adds/replaces, never deletes). onProgress(0..1). */
+  async saveRecipient(key, name, category) {
+    if (DEMO) return;
+    const p = await open();
+    name = String(name ?? "").trim().slice(0, 60);
+    if (name) await p.put("recipients", [{ key, name, category: category || null, updated_at: new Date().toISOString() }]);
+    else await p.del("recipients", [key]);
+  },
+  async saveRules(writes, deletes) {
+    if (DEMO) return;
+    const p = await open(), stamp = new Date().toISOString();
+    await p.put("personal_rules", writes.map((w) => ({ kind: w.kind, match: w.match.trim(), value: w.value.trim().slice(0, 80), updated_at: stamp })));
+    await p.del("personal_rules", deletes.map((d) => [d.kind, d.match.trim()]));
+  },
+  /** A Backup of this Profile: everything but the Mercado Pago permission. */
+  async exportBackup() {
+    const head = { format: FORMAT, version: VERSION, exported_at: new Date().toISOString() };
+    if (DEMO) return { ...head, movements: demoRows(), balances: [], recipients: [], notes: [], personal_rules: [], ml_categories: [], settings: {} };
+    const p = await open(), out = { ...head };
+    for (const t of BACKUP_TABLES) out[t] = await p.all(t);
+    out.settings = { recipient_salt: await p.setting("recipient_salt") };
+    return out;
+  },
+  /** Restore a Backup into this Profile (adds/replaces, never deletes). onProgress(0..1). */
   async importBackup(b, onProgress = () => {}) {
     if (DEMO) throw new Error("en la demostración no se importan datos");
-    if (b?.format !== "mis-finanzas" || b.version !== 1) throw new Error("ese archivo no es una copia de Mis finanzas");
-    const tables = ["personal_rules", "recipients", "notes", "ml_categories", "balances", "movements"];
-    const total = tables.reduce((n, t) => n + (b[t]?.length ?? 0), 0) || 1;
+    if (b?.format !== FORMAT || b.version !== VERSION) throw new Error("ese archivo no es una copia de Mis finanzas");
+    const p = await open(), total = BACKUP_TABLES.reduce((n, t) => n + (b[t]?.length ?? 0), 0) || 1;
     let done = 0;
-    if (b.settings?.recipient_salt) await call("/api/import", { settings: { recipient_salt: b.settings.recipient_salt } });
-    for (const t of tables) {
-      const rows = b[t] ?? [];
-      for (let i = 0; i < rows.length; i += 300) {
-        await call("/api/import", { table: t, rows: rows.slice(i, i + 300) });
-        done += Math.min(300, rows.length - i); onProgress(done / total);
+    for (const t of BACKUP_TABLES) {
+      const rows = (Array.isArray(b[t]) ? b[t] : []).filter((r) => r && typeof r === "object");
+      for (let i = 0; i < rows.length; i += 500) {
+        await p.put(t, rows.slice(i, i + 500).map(({ h, synced_at, ...r }) => r));
+        done += Math.min(500, rows.length - i); onProgress(done / total);
       }
+    }
+    // the copy's recipient key: movements are downloaded again (13 months) so every recipient name keeps matching
+    const salt = b.settings?.recipient_salt;
+    if (typeof salt === "string" && /^[0-9a-f]{16,128}$/.test(salt)) {
+      await p.setSetting("recipient_salt", salt);
+      await p.setSetting("backfill_done", null);
+      await p.setSetting("sync_plan", null);
     }
     return done;
   },
-  /** Erase every row of this Deployment (it goes back to unclaimed). */
+  /** Erase this Profile from this device (the Mercado Pago account itself doesn't change). */
   async deleteAll() {
     if (DEMO) throw new Error("en la demostración no hay datos guardados");
-    await call("/api/delete-all", { confirm: "BORRAR" });
+    const p = await open();
+    await session().erase(p.id);
+    profile = null; sync = null;
   },
-  /** Version of this Deployment and the Template it updates from. */
-  async health() { const r = await fetch("/api/health", { cache: "no-store" }); return r.ok ? r.json() : {}; },
-  /** Owner settings ({ github_repo }). */
-  async saveSettings(s) { if (DEMO) throw new Error("en la demostración no se guarda"); return call("/api/settings", s); },
-  async signOut() { if (!DEMO) await call("/api/auth/logout", {}); },
+  /** App version (from the Relay). */
+  async health() { const r = await fetch("/api/health", { cache: "no-store" }).catch(() => null); return r?.ok ? r.json() : {}; },
+  /** Forget the permission on this device; the data stays for the next sign-in. */
+  async signOut() { if (!DEMO) { await session().signOut(); profile = null; sync = null; } },
 };

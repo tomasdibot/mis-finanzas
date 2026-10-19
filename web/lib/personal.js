@@ -1,4 +1,4 @@
-// Personal rules (the Owner's own, stored in their database) applied over the Template's rules.js:
+// Personal rules (the user's own, stored in their Profile) applied over the shared rules.js:
 // merchant renames, and words that pick a category (checked before the Template's words, so they win).
 
 export const KINDS = ["name", "word", "word_in"];

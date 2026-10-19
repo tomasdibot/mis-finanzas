@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: superseded by 0003
 ---
 
 # Self-hosted Deployments, no shared service

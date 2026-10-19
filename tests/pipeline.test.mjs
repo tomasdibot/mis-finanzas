@@ -2,7 +2,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { localIso, mpTime, monthWindows, paymentRows, parseCsv, parseAmount, releaseBalance, payoutRows }
-  from "../src/lib/normalize.js";
+  from "../web/lib/normalize.js";
 import rules from "../web/rules.js";
 import { merchantOf, categorize, enrich, enrichIn, pretty, channelOf, liveBalance, keywordCategory, noteWords, stem,
   wordsToLearn, learnedWords, learnedCategory } from "../web/lib/model.js";

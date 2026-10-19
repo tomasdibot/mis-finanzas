@@ -1,7 +1,10 @@
-# mis-finanzas: one Owner's Deployment. The Worker answers /api/*; everything else is the app in web/.
+# mis-finanzas: one shared app (ADR 0003). Static app in web/ + the Relay under /api/*. No database and no Cron:
+# every user's data lives only on their own device. Secrets: MP_CLIENT_ID, MP_CLIENT_SECRET (wrangler secret put).
 name = "mis-finanzas"
 main = "src/worker.js"
 compatibility_date = "2026-10-01"
+workers_dev = true
+preview_urls = false
 
 [assets]
 directory = "./web"
@@ -9,16 +12,6 @@ binding = "ASSETS"
 not_found_handling = "single-page-application"
 run_worker_first = ["/api/*"]
 
-# The Owner's database. No database_id here: Cloudflare creates the database on the first deploy (and the
-# "Deploy to Cloudflare" button fills in the id in the Owner's own copy).
-[[d1_databases]]
-binding = "DB"
-database_name = "mis-finanzas"
-migrations_dir = "migrations"
-
-# sync with Mercado Pago in small steps (src/sync.js)
-[triggers]
-crons = ["*/30 * * * *"]
-
+# The Relay keeps nothing, not even request logs.
 [observability]
-enabled = true
+enabled = false

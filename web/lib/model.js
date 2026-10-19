@@ -214,7 +214,7 @@ export function enrich(rows, rules, recipients = {}, notes = {}) {
   const nonCons = new Set(rules.nonConsumption);
   const out = rows.filter((r) => isCompleted(r) && r.direction === "out").map((r) => {
     let { merchant, detail } = merchantOf(r, rules);
-    // the Owner's own name for this merchant (personal rules, lib/personal.js)
+    // the user's own name for this merchant (personal rules, lib/personal.js)
     const merchant_auto = merchant; merchant = rules.renames?.[merchant] ?? merchant;
     // transfers you sent: Mercado Pago doesn't name the recipient; the name is the one you gave (recipients table)
     const isTransfer = r.operation_type === "money_transfer";

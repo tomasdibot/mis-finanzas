@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import rules from "../web/rules.js";
 import { withPersonal } from "../web/lib/personal.js";
 import { enrich, enrichIn } from "../web/lib/model.js";
-import { paymentRows } from "../src/lib/normalize.js";
+import { paymentRows } from "../web/lib/normalize.js";
 
 const ME = 111;
 const pay = (over) => ({ id: 1, operation_type: "regular_payment", status: "approved", payment_type_id: "account_money",

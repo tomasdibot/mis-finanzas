@@ -485,3 +485,6 @@ a.btn { display: block; text-align: center; text-decoration: none; }
   .detail .dclose { display: none; }
 }
 @media (min-width: 1600px) { .wrap { max-width: 1560px; } }
+#loginStart, #unlockRow { display: grid; gap: 10px; }
+#loginStart[hidden], #unlockRow[hidden] { display: none; }
+.login .note a { color: inherit; }

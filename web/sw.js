@@ -1,7 +1,7 @@
 // Service worker: the app shell loads instantly and works offline (showing the last data it saw).
 // Data always comes fresh from the Worker (/api/*) when there is a connection; those calls are never cached here.
-const VERSION = "mf-v6";
-const SHELL = ["./", "index.html", "styles.css", "app.js", "rules.js", "lib/api.js", "lib/personal.js", "lib/model.js", "lib/charts.js",
+const VERSION = "mf-v7";
+const SHELL = ["./", "index.html", "styles.css", "app.js", "rules.js", "lib/api.js", "lib/session.js", "lib/store.js", "lib/sync.js", "lib/lock.js", "lib/normalize.js", "lib/crypto.js", "lib/personal.js", "lib/model.js", "privacidad.html", "lib/charts.js",
   "lib/icons.js", "lib/brands.js", "lib/breakdown.js", "lib/demo.js", "manifest.webmanifest", "icons/app-icon-192.png"];
 
 self.addEventListener("install", (e) => e.waitUntil(caches.open(VERSION).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting())));

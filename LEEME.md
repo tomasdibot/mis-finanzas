@@ -1,99 +1,38 @@
-# Mis finanzas: guía de instalación
+# Mis finanzas: cómo se usa
 
-Vas a tener **tu propia copia** de la app: tus gastos e ingresos de Mercado Pago, siempre actualizados, en el
-celular y en la compu. Todo queda en **tu** cuenta de Cloudflare: nadie más puede ver tus datos (tampoco quien hizo
-la app). Es gratis: usa los planes gratuitos de Cloudflare y GitHub. Solo para cuentas de Mercado Pago de Argentina.
+## Empezar (un minuto)
 
-Tardás unos 15 minutos y no hace falta saber programar: son todos clics.
+1. Abrí la dirección de la app en el celular o en la compu.
+2. Tocá **Entrar con Mercado Pago** y aceptá el permiso.
+3. En unos segundos ves tus últimos 3 meses; el resto (hasta 13 meses) se sigue cargando mientras tenés la app
+   abierta.
 
-## Qué necesitás
-
-- Tu cuenta de **Mercado Pago** (la de siempre).
-- Una cuenta de **GitHub** (gratis): [github.com/signup](https://github.com/signup). Ahí se guarda tu copia de la app.
-- Una cuenta de **Cloudflare** (gratis): [dash.cloudflare.com/sign-up](https://dash.cloudflare.com/sign-up). Ahí funciona la app.
-
-## Paso 1: tu aplicación de Mercado Pago
-
-La app lee tus movimientos con un permiso que le das vos, a través de una "aplicación" de Mercado Pago que es tuya.
-
-1. Entrá a [Mercado Pago Developers → Tus integraciones](https://www.mercadopago.com.ar/developers/panel/app) con tu
-   cuenta de Mercado Pago y tocá **Crear aplicación**.
-2. Ponele un nombre (por ejemplo, *Mis finanzas*) y completá lo que te pida.
-3. Abrí la aplicación que creaste → **Credenciales de producción**. Dejá esa página abierta: en el paso 2 vas a
-   copiar el **Client ID** y el **Client Secret**.
-
-## Paso 2: instalar la app en tu Cloudflare
-
-1. Tocá este botón:
-
-   [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/tomasdibot/mis-finanzas)
-
-2. Entrá con tu cuenta de Cloudflare y conectá tu cuenta de GitHub cuando te lo pida.
-3. En la página de configuración:
-   - **Nombre**: podés dejar `mis-finanzas`.
-   - **MP_CLIENT_ID** y **MP_CLIENT_SECRET**: pegá los dos datos del paso 1.
-4. Tocá **Create and deploy** (Crear y publicar) y esperá unos minutos.
-5. Cuando termine, Cloudflare te muestra la dirección de tu app, parecida a
-   `https://mis-finanzas.tu-nombre.workers.dev`. Copiala.
-
-## Paso 3: avisarle a Mercado Pago tu dirección
-
-1. Volvé a tu aplicación de Mercado Pago (paso 1) → **Editar** (o *Configuración*).
-2. En **URLs de redireccionamiento** pegá tu dirección con `/api/auth/callback` al final, por ejemplo:
-   `https://mis-finanzas.tu-nombre.workers.dev/api/auth/callback`
-3. Guardá.
-
-## Paso 4: entrar
-
-1. Abrí tu dirección y tocá **Entrar con Mercado Pago**. Aceptá el permiso.
-2. La primera vez que entrás, la app queda **a tu nombre**: después solo puede entrar la cuenta de Mercado Pago dueña
-   de la aplicación del paso 1.
-3. Empieza sola la primera descarga (los últimos 13 meses). Puede tardar unos minutos; podés dejarla trabajando.
-
-En el celular: abrí tu dirección → menú del navegador → **Agregar a pantalla de inicio**.
+En el celular, para tenerla como una app: menú del navegador → **Agregar a la pantalla principal** (Android/Chrome)
+o botón compartir → **Agregar a inicio** (iPhone/Safari).
 
 ## Día a día
 
-- Se actualiza sola cada 30 minutos. El botón ↻ (o deslizar hacia abajo) actualiza en el momento.
-- Para saber tu saldo y las transferencias a otros bancos, la app le pide a Mercado Pago un reporte de
-  "Dinero disponible", como mucho uno por día. **Mercado Pago te manda un email cada vez que lo genera**: es normal.
+- Cada vez que abrís la app, se pone al día con Mercado Pago. El botón ↻ (o deslizar hacia abajo) actualiza en el
+  momento. Con la app cerrada no se actualiza nada.
 - Tocá cualquier movimiento para escribir en qué fue, cambiar su categoría o el nombre del comercio.
 - **Ajustes → Tus reglas**: tus nombres de comercios y palabras que siempre significan una categoría.
-- **Ajustes → Tus datos**: descargar una copia de seguridad, restaurarla, o borrar todo.
+- **Ajustes → Pedir huella, cara o PIN**: un bloqueo opcional al abrir la app.
+- Mercado Pago te manda un mail cuando genera el reporte de saldo (como mucho uno por día): es normal.
 
-## Actualizar la app
+## Tus datos
 
-Cuando haya una versión nueva, vos decidís cuándo instalarla:
-
-1. **Ajustes → Versión de la app**: la primera vez, escribí tu copia de GitHub (por ejemplo `tu-usuario/mis-finanzas`;
-   la ves en [github.com](https://github.com) arriba a la izquierda, en tus repositorios).
-2. Tocá **Actualizar la app**. Se abre tu copia en GitHub: tocá **Run workflow** y después el botón verde
-   **Run workflow**.
-3. En unos minutos la app queda actualizada. Tus datos y tus reglas no cambian.
-
-## Privacidad
-
-- Tus datos están solo en tu cuenta de Cloudflare. La app no manda nada a nadie más: ni estadísticas, ni errores,
-  ni avisos de versión.
-- El permiso de Mercado Pago se usa solo para **leer** tus movimientos y tu saldo. Queda guardado en tu servidor y
-  nunca viaja a tu navegador ni a tus copias de seguridad.
-- La app no guarda emails, DNI/CUIT, teléfonos ni números de cuenta de nadie. A quién le transferís se reconoce con un
-  código cifrado; vos le ponés el nombre.
+- Quedan **solo en ese dispositivo**. Si usás la app en el celular y en la compu, cada uno tiene su copia.
+- **Ajustes → Tus datos → Descargar una copia de seguridad**: un archivo con tus notas, nombres y reglas (sin tu
+  permiso de Mercado Pago). Con **Restaurar una copia** la pasás a otro dispositivo. Una vez por mes la app te lo
+  recuerda.
+- **Cerrar sesión** quita el permiso y deja tus datos para la próxima vez. Si otra persona entra con su cuenta en el
+  mismo dispositivo, ve solo lo suyo.
+- **Borrar todos mis datos** los borra de ese dispositivo. No hay otra copia en ningún lado.
+- Para quitarle el permiso a la app desde Mercado Pago: configuración de seguridad de tu cuenta → aplicaciones
+  conectadas.
 
 ## Si algo no anda
 
-- **"Falta configurar la app de Mercado Pago"**: faltan MP_CLIENT_ID o MP_CLIENT_SECRET. En Cloudflare → Workers →
-  tu app → **Settings → Variables and Secrets**, agregalos (tipo *Secret*).
-- **"Esta app solo acepta la cuenta de Mercado Pago dueña…"**: entraste con otra cuenta de Mercado Pago. Cerrá sesión
-  en Mercado Pago y entrá con la cuenta que creó la aplicación del paso 1.
-- **Mercado Pago dice que la dirección de redireccionamiento no es válida**: revisá el paso 3 (tiene que terminar
-  en `/api/auth/callback` y empezar con `https://`).
-- **"El permiso de Mercado Pago venció"**: Ajustes → Cerrar sesión, y volvé a entrar con Mercado Pago.
-
-## Desinstalar
-
-1. En la app: **Ajustes → Tus datos → Borrar todos mis datos** (si querés, antes descargá una copia).
-2. Cloudflare → **Workers & Pages** → tu app → **Settings** → **Delete**. Y en **Storage & Databases → D1**, borrá la
-   base `mis-finanzas`.
-3. GitHub → tu copia → **Settings** → **Delete this repository**.
-4. Mercado Pago Developers → tu aplicación → eliminarla.
+- **"Tu permiso de Mercado Pago venció"**: tocá Entrar con Mercado Pago de nuevo.
+- **"Este navegador no dejó guardar tu permiso"**: estás en una ventana privada o el navegador bloquea el
+  almacenamiento. Abrí la app en una ventana normal.

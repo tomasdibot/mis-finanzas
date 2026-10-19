@@ -1,29 +1,15 @@
 {
   "name": "mis-finanzas",
-  "version": "0.6.0",
-  "description": "Tus gastos e ingresos de Mercado Pago, en tu propia cuenta de Cloudflare (gratis).",
+  "version": "0.7.0",
+  "description": "Tus gastos e ingresos de Mercado Pago, gratis; tus datos quedan solo en tu dispositivo.",
   "private": true,
   "type": "module",
   "scripts": {
-    "deploy": "npm run db:migrate && wrangler deploy",
-    "db:migrate": "wrangler d1 migrations apply DB --remote",
+    "deploy": "wrangler deploy",
     "dev": "wrangler dev",
     "test": "node --test \"tests/**/*.test.mjs\""
   },
   "devDependencies": {
     "wrangler": "^4.151.1"
-  },
-  "cloudflare": {
-    "bindings": {
-      "MP_CLIENT_ID": {
-        "description": "El **Client ID** de tu aplicación de Mercado Pago: [Tus integraciones](https://www.mercadopago.com.ar/developers/panel/app) → tu aplicación → **Credenciales de producción**."
-      },
-      "MP_CLIENT_SECRET": {
-        "description": "El **Client Secret** de esa misma aplicación (mismo lugar). Queda guardado como secreto en tu cuenta de Cloudflare; nadie más lo ve."
-      },
-      "DB": {
-        "description": "Tu base de datos (se crea sola, gratis)."
-      }
-    }
   }
 }
