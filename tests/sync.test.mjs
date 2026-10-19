@@ -164,3 +164,11 @@ test("an expired Mercado Pago permission is explained, not hidden", async () => 
   assert.match(r.error, /volvé a entrar con Mercado Pago/);
   assert.equal(q("SELECT ok FROM sync_log")[0].ok, 0);
 });
+
+test("when the Cron and the app sync at the same time, no log line stays 'running' forever", async () => {
+  await untilDone(manualStep);                  // first download done
+  await cronStep(env);                          // the Cron starts a plan…
+  env.DB.raw.exec("DELETE FROM app_settings WHERE key = 'sync_plan'"); // …and the app's step replaces it
+  await untilDone(manualStep);
+  assert.equal(q("SELECT count(*) n FROM sync_log WHERE finished_at IS NULL")[0].n, 0);
+});

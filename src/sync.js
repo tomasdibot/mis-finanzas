@@ -246,6 +246,9 @@ export async function step(env, { trigger, months, reportGapHours }) {
   try { await reportsStep(env, c, reportGapHours); } catch (e) { note = `Saldo/retiros: ${e instanceof Error ? e.message : e}`; }
   await env.DB.batch([
     env.DB.prepare("UPDATE sync_log SET finished_at = ?1, ok = 1, rows = ?2, detail = ?3 WHERE id = ?4").bind(nowIso(), plan.rows, note, plan.log),
+    // a Cron step and an app step that ran at the same time share one plan: the other one's log line ends here too
+    env.DB.prepare("UPDATE sync_log SET finished_at = ?1, ok = 1, detail = 'junto con otra actualización' WHERE finished_at IS NULL AND id <> ?2")
+      .bind(nowIso(), plan.log),
     env.DB.prepare("DELETE FROM sync_log WHERE id <= (SELECT max(id) FROM sync_log) - 200"),
     env.DB.prepare("DELETE FROM app_settings WHERE key = 'sync_plan'"),
     ...(plan.backfill ? [env.DB.prepare("INSERT INTO app_settings (key, value) VALUES ('backfill_done', ?1) ON CONFLICT (key) DO NOTHING").bind(nowIso())] : []),
