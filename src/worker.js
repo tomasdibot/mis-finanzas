@@ -5,6 +5,7 @@ import { login, callback, logout, signedIn } from "./auth.js";
 import { state, movements, syncLog, saveNotes, saveRecipient, saveRules, saveSettings } from "./data.js";
 import { cronStep, manualStep, collectReports } from "./sync.js";
 import { exportMeta, importChunk, deleteAll } from "./backup.js";
+import { isPilot, pilotHome, pilotStart, pilotCallback } from "./pilot.js"; // PILOT, temporary
 import pkg from "../package.json" with { type: "json" };
 import template from "../template.json" with { type: "json" };
 
@@ -38,6 +39,10 @@ export default {
         version: pkg.version, template: template.repo });
     }
     if (req.method === "GET" && path === "/api/auth/login") return login(req, env);
+    // PILOT, temporary: another person's account, nothing stored (src/pilot.js)
+    if (req.method === "GET" && path === "/api/pilot") return pilotHome();
+    if (req.method === "GET" && path === "/api/pilot/start") return pilotStart(req, env);
+    if (req.method === "GET" && path === "/api/auth/callback" && isPilot(req)) return pilotCallback(req, env);
     if (req.method === "GET" && path === "/api/auth/callback") return callback(req, env);
 
     // writes only from this site's own pages (the session cookie is SameSite=Lax; this also checks the origin)
