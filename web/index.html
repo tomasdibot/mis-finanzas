@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+  <title>Mis finanzas</title>
+  <meta name="theme-color" content="#fbf9f8" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141110" media="(prefers-color-scheme: dark)">
+  <!-- icons carry ?v= so phones and browsers fetch the new logo instead of an old cached one -->
+  <link rel="manifest" href="manifest.webmanifest?v=4">
+  <link rel="icon" href="favicon.ico?v=4" sizes="48x48">
+  <link rel="icon" href="icons/favicon-64.png?v=4" sizes="64x64" type="image/png">
+  <link rel="icon" href="icons/app-icon-192.png" sizes="192x192" type="image/png">
+  <meta name="mobile-web-app-capable" content="yes">
+  <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png?v=4">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Finanzas">
+  <!-- the very first paint is the splash, already in your theme and palette: the saved choice is applied before
+       anything is drawn, and the few styles the splash needs are here, not in a file that has to arrive first -->
+  <script>
+    try {
+      var t = JSON.parse(localStorage.getItem("mpf.theme") || '"auto"'), p = JSON.parse(localStorage.getItem("mpf.palette") || '"coral"');
+      if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+      document.documentElement.dataset.palette = p;
+    } catch (e) { /* private mode: defaults */ }
+  </script>
+  <style>
+    html { background: #fbf9f8; }
+    @media (prefers-color-scheme: dark) { html:not([data-theme="light"]) { background: #141212; } }
+    html[data-theme="dark"] { background: #141212; }
+    body { margin: 0; }
+    #splash { position: fixed; inset: 0; z-index: 50; display: grid; place-content: center; justify-items: center; gap: 18px; background: inherit; }
+    #splash .slogo { width: 84px; height: 84px; }
+    #splash .sname { font: 400 30px "DM Serif Display", Georgia, serif; color: #211f1f; opacity: 0; }
+    @media (prefers-color-scheme: dark) { html:not([data-theme="light"]) #splash .sname { color: #f4f1f0; } }
+    html[data-theme="dark"] #splash .sname { color: #f4f1f0; }
+    .fonts-ready #splash .sname { opacity: 1; transition: opacity .35s; }
+    .slogo .tile { fill: #e0573a; } .slogo .b, .slogo .dot { fill: #fff; } .slogo .b1 { opacity: .55; } .slogo .b2 { opacity: .8; }
+    html[data-palette="indigo"] .slogo .tile { fill: #4f5bd5; } html[data-palette="bosque"] .slogo .tile { fill: #1d8a6d; }
+    html[data-palette="ciruela"] .slogo .tile { fill: #a4468f; } html[data-palette="oceano"] .slogo .tile { fill: #1678a6; }
+    #ptr, #app, #login { visibility: hidden; } .ready #ptr, .ready #app, .ready #login { visibility: visible; }
+  </style>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <!-- fonts and styles load without holding up the first paint (the splash above needs neither) -->
+  <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&family=DM+Serif+Display&display=swap" onload="this.onload=null;this.rel='stylesheet'">
+  <link rel="preload" as="style" href="styles.css" onload="this.onload=null;this.rel='stylesheet';document.documentElement.classList.add('ready')">
+  <noscript><link rel="stylesheet" href="styles.css"></noscript>
+</head>
+<body>
+<!-- the logo (inline svg in the header and the login; also icons/*.png, tools/make_icons.py): three bars cut along one rising line + a dot -->
+<!-- opening animation (hidden as soon as the app is ready; reduced-motion users get a plain fade) -->
+<div id="splash" class="splash" aria-hidden="true">
+  <svg class="slogo logo" viewBox="0 0 64 64"><rect class="tile" width="64" height="64" rx="14.4"/><path class="b b1" d="M10,39L19,34.05V45.4Q19,47 17.4,47H11.6Q10,47 10,45.4Z"/><path class="b b2" d="M23.5,31.58L32.5,26.63V45.4Q32.5,47 30.9,47H25.1Q23.5,47 23.5,45.4Z"/><path class="b b3" d="M37,24.15L46,19.2V45.4Q46,47 44.4,47H38.6Q37,47 37,45.4Z"/><circle class="dot" cx="52.5" cy="15.6" r="3.7"/></svg>
+  <div class="sname">Mis finanzas</div>
+</div>
+<!-- pull to refresh: appears when the page is dragged down from the very top -->
+<div id="ptr" class="ptr" aria-hidden="true">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4v5h-5"/></svg>
+</div>
+<div class="wrap">
+
+  <!-- ============ login ============ -->
+  <section id="login" class="login" hidden>
+    <svg class="logo loginlogo" viewBox="0 0 64 64" aria-hidden="true"><rect class="tile" width="64" height="64" rx="14.4"/><path class="b b1" d="M10,39L19,34.05V45.4Q19,47 17.4,47H11.6Q10,47 10,45.4Z"/><path class="b b2" d="M23.5,31.58L32.5,26.63V45.4Q32.5,47 30.9,47H25.1Q23.5,47 23.5,45.4Z"/><path class="b b3" d="M37,24.15L46,19.2V45.4Q46,47 44.4,47H38.6Q37,47 37,45.4Z"/><circle class="dot" cx="52.5" cy="15.6" r="3.7"/></svg>
+    <h1>Mis finanzas</h1>
+    <p>Muy pronto vas a poder entrar con tu cuenta de Mercado Pago.</p>
+    <form id="loginForm" action="./" method="get">
+      <input type="hidden" name="demo" value="">
+      <button class="btn">Ver la demostración</button>
+    </form>
+    <div class="note" id="loginNote">La demostración usa datos inventados.</div>
+  </section>
+
+  <!-- ============ app ============ -->
+  <main id="app" hidden>
+    <header class="top">
+      <h1 class="brand"><svg class="logo" viewBox="0 0 64 64" aria-hidden="true"><rect class="tile" width="64" height="64" rx="14.4"/><path class="b b1" d="M10,39L19,34.05V45.4Q19,47 17.4,47H11.6Q10,47 10,45.4Z"/><path class="b b2" d="M23.5,31.58L32.5,26.63V45.4Q32.5,47 30.9,47H25.1Q23.5,47 23.5,45.4Z"/><path class="b b3" d="M37,24.15L46,19.2V45.4Q46,47 44.4,47H38.6Q37,47 37,45.4Z"/><circle class="dot" cx="52.5" cy="15.6" r="3.7"/></svg>Mis finanzas</h1>
+      <div class="status">
+        <span id="updated"></span>
+        <button class="iconbtn" id="refresh" aria-label="Actualizar ahora" title="Actualizar ahora">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4v5h-5"/></svg>
+        </button>
+        <button class="iconbtn" id="openSettings" aria-label="Ajustes" title="Ajustes">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>
+        </button>
+      </div>
+    </header>
+    <div id="banner" class="banner" hidden></div>
+
+    <!-- filter bar: always at hand (sticks to the top while scrolling). Each pill opens the phone's own picker. -->
+    <nav class="fbar" id="fbar" aria-label="Filtros">
+      <div class="stepper"><button id="prevMonth" aria-label="Mes anterior">‹</button><span id="monthLabel"></span>
+        <button id="nextMonth" aria-label="Mes siguiente">›</button></div>
+      <div class="seg view" id="view" role="group" aria-label="Qué ver">
+        <button data-view="out">Gastos</button><button data-view="in">Ingresos</button>
+      </div>
+      <label class="pill"><span class="pv" id="rangeLabel"></span><span class="car">⌄</span>
+        <select id="fRange" aria-label="Período del gráfico"><option value="3">Últimos 3 meses</option><option value="6">Últimos 6 meses</option>
+          <option value="12">Últimos 12 meses</option><option value="0">Todo el historial</option></select></label>
+      <label class="pill" id="pChannel"><span class="pv"></span><span class="car">⌄</span><select id="fChannel" aria-label="Canal"></select></label>
+      <button class="pill" id="pNonCons" aria-pressed="false" title="Sumar las compras financiadas por su total (normalmente cuentan por cuota) y las retenciones">+ Financiadas</button>
+    </nav>
+
+    <!-- two sections side by side: the month summary and the month by category. On a phone they're one screen
+         wide each and you swipe between them (or tap the tabs); on a desktop both are visible. -->
+    <div class="swipetabs" id="swipeTabs" role="tablist" aria-label="Secciones">
+      <button role="tab" data-p="0" aria-selected="true">Resumen</button><button role="tab" data-p="1" aria-selected="false">Por categoría</button>
+    </div>
+    <div class="swipe" id="swipe">
+      <section class="panel p-sum" aria-label="Resumen del mes">
+        <div class="kpis" aria-live="polite">
+          <div class="kpi kbal" style="--c:0"><div class="klabel">Saldo disponible</div><div class="kvalue" id="balanceValue">—</div>
+            <div class="ksub" id="balanceSub"></div></div>
+          <div class="kpi kin" style="--c:1"><div class="klabel"><span class="kico" id="kInIco"></span>Ingresos del mes</div>
+            <div class="kvalue" id="kIn">—</div><div class="ksub" id="kInSub"></div></div>
+          <div class="kpi kout" style="--c:2"><div class="klabel"><span class="kico" id="kOutIco"></span>Gastos del mes</div>
+            <div class="kvalue" id="kOut">—</div><div class="ksub" id="kOutSub"></div></div>
+        </div>
+        <!-- spending per month (tap a month): part of the summary, so it slides away with it -->
+        <!-- per month, then (sliding the chart itself sideways) per month for one category, picked with a button -->
+        <section class="card trendcard">
+          <div class="tslides" id="tslides">
+            <div class="tslide"><h2 id="trendTitle">Gastos por mes</h2><div id="trend"></div></div>
+            <div class="tslide"><h2 id="trendOneTitle">Gastos por mes y categoría</h2>
+              <!-- the chosen category (icon, name, its total in the period); tap → #catPick lists them all -->
+              <button type="button" class="tcatbtn" id="trendCatBtn" aria-haspopup="dialog"></button>
+              <div id="trendOne"></div></div>
+          </div>
+          <div class="tdots" id="tdots" role="tablist" aria-label="Gráficos"><button data-t="0" aria-label="Por mes"></button>
+            <button data-t="1" aria-label="Por mes y categoría"></button></div>
+        </section>
+        <button class="gonext" id="goCats" type="button">Ver gastos por categoría →</button>
+      </section>
+
+      <!-- this month broken down: by category by default, or by payment method, channel, merchant, weekday -->
+      <section class="panel p-cat" aria-label="Gastos por categoría"><div class="card main-chart">
+        <h2 id="catTitle"></h2>
+        <div class="dims" id="dims" role="group" aria-label="Ver el mes por"></div>
+        <p class="note" id="catTotal"></p>
+        <div id="catChart"></div>
+        <p class="note scrollhint" id="catHint" hidden>Deslizá el gráfico para ver todas las categorías →</p>
+        <details class="ctablewrap"><summary>Ver como tabla</summary><div id="cats"></div></details>
+      </div></section>
+    </div>
+    <div class="swipedots" id="swipeDots" aria-hidden="true"><i class="on"></i><i></i></div>
+
+    <div class="grid">
+      <div class="col-main">
+
+        <details class="card moves" id="moves" style="--c:4">
+          <summary><h2>Todos los movimientos</h2><span class="caret">⌄</span></summary>
+          <ul class="mlist" id="mlist"></ul>
+          <div class="rowbtns"><button class="btn ghost" id="more" hidden>Mostrar más</button>
+            <button class="btn ghost" id="csv">Descargar CSV</button></div>
+        </details>
+      </div>
+
+      <!-- category detail: fixed on the right on a desktop; on a phone it opens as a sheet (#detailSheet) -->
+      <aside class="card detail col-side" id="detail" style="--c:3"></aside>
+    </div>
+  </main>
+</div>
+
+<dialog class="sheet detailsheet" id="detailSheet"><div class="in" id="detailSheetBody"></div></dialog>
+
+<!-- a movement: write what it was ("Café con Ana") and, if you want, its category -->
+<dialog class="sheet" id="moveSheet"><form method="dialog" class="in" id="moveForm">
+  <div class="dkicker" id="mvDate"></div>
+  <h3 id="mvTitle" tabindex="-1" autofocus></h3>
+  <p class="note" id="mvInfo"></p>
+  <div class="field"><label for="mvNote">¿En qué fue?</label>
+    <input id="mvNote" type="text" maxlength="80" autocomplete="off" placeholder="Ej.: Café con Ana"></div>
+  <p class="note" id="mvGuess"></p>
+  <div class="field"><label for="mvCategory">Categoría</label><select id="mvCategory"></select></div>
+  <label class="field switch" id="mvAllRow"><span id="mvAllLabel"></span><input type="checkbox" id="mvAll"></label>
+  <button type="button" class="btn ghost wide" id="mvRecipient" hidden>Ponerle nombre a este destinatario</button>
+  <div class="rowbtns"><button class="btn ghost" value="clear" id="mvClear">Borrar nota</button>
+    <span><button class="btn ghost" value="cancel">Cancelar</button> <button class="btn" value="save">Guardar</button></span></div>
+</form></dialog>
+
+<!-- name a transfer recipient (Mercado Pago doesn't say who it is) -->
+<dialog class="sheet" id="nameSheet"><form method="dialog" class="in" id="nameForm">
+  <h3>¿A quién le transferiste?</h3>
+  <p class="note" id="nameInfo"></p>
+  <div class="field"><label for="rName">Nombre</label>
+    <input id="rName" type="text" maxlength="60" autocomplete="off" placeholder="Ej.: Juan (alquiler)"></div>
+  <div class="field"><label for="rCategory">Categoría de estas transferencias</label><select id="rCategory"></select></div>
+  <p class="note">Se aplica a todas las transferencias a esta misma cuenta: las anteriores y las próximas.</p>
+  <div class="rowbtns"><button class="btn ghost" value="clear" id="rClear">Quitar nombre</button>
+    <span><button class="btn ghost" value="cancel">Cancelar</button> <button class="btn" value="save" id="rSave">Guardar</button></span></div>
+</form></dialog>
+
+<!-- every recipient, to name them in one go -->
+<dialog class="sheet" id="recipientsSheet"><form method="dialog" class="in">
+  <h3 tabindex="-1" autofocus>Destinatarios de tus transferencias</h3>
+  <p class="note">Mercado Pago no informa el nombre de a quién le transferís (a cuentas de Mercado Pago o a un CVU/alias
+    de otro banco), pero sí reconoce si es la misma cuenta: ponele nombre a cada una una sola vez.</p>
+  <ul class="mlist rlist" id="rlist"></ul>
+  <div class="rowbtns"><span></span><button class="btn" value="ok">Listo</button></div>
+</form></dialog>
+
+<!-- pick the category for the per-month chart (option B): every category with its icon and total in the period -->
+<dialog class="sheet" id="catPick"><form method="dialog" class="in">
+  <h3 tabindex="-1" autofocus>Elegí una categoría</h3>
+  <p class="note" id="catPickNote"></p>
+  <div class="catpick" id="catPickList" role="listbox" aria-label="Categorías"></div>
+  <div class="rowbtns"><span></span><button class="btn ghost" value="cancel">Cerrar</button></div>
+</form></dialog>
+
+<!-- words the app learned from your notes ("flores" → Regalos): tap ✕ to forget one -->
+<dialog class="sheet" id="wordsSheet"><form method="dialog" class="in">
+  <h3 tabindex="-1" autofocus>Palabras aprendidas</h3>
+  <p class="note">Cuando elegís la categoría de una nota que la app no reconocía, recuerda sus palabras para la próxima.
+    Si una quedó mal, tocá ✕ para olvidarla.</p>
+  <ul class="mlist wlist" id="wlist"></ul>
+  <div class="rowbtns"><span></span><button class="btn" value="ok">Listo</button></div>
+</form></dialog>
+
+<!-- settings -->
+<dialog class="sheet" id="settings"><form method="dialog" class="in">
+  <!-- autofocus on the title: opening a sheet would otherwise focus its first field, and on a phone that pops open
+       the Tema picker (or the keyboard) by itself -->
+  <h3 tabindex="-1" autofocus>Ajustes</h3>
+  <div class="field"><label for="theme">Tema</label>
+    <select id="theme"><option value="auto">Automático (como el sistema)</option><option value="light">Claro</option><option value="dark">Oscuro</option></select></div>
+  <div class="field"><span class="flabel">Paleta</span>
+    <div class="swatches" id="palette" role="group" aria-label="Paleta">
+      <button type="button" data-p="coral" style="--sw:#e0573a">Coral</button>
+      <button type="button" data-p="indigo" style="--sw:#4f5bd5">Índigo</button>
+      <button type="button" data-p="bosque" style="--sw:#1d8a6d">Bosque</button>
+      <button type="button" data-p="ciruela" style="--sw:#a4468f">Ciruela</button>
+      <button type="button" data-p="oceano" style="--sw:#1678a6">Océano</button>
+    </div></div>
+  <div class="field"><span class="flabel">Transferencias</span>
+    <button type="button" class="btn ghost wide" id="openRecipients">Ponerle nombre a los destinatarios</button></div>
+  <div class="field"><span class="flabel">Categorías</span>
+    <button type="button" class="btn ghost wide" id="openWords">Palabras aprendidas de tus notas</button></div>
+  <div class="field"><span class="flabel">Última actualización</span><div class="note" id="syncInfo"></div></div>
+  <div class="rowbtns"><button class="btn ghost" id="logout" value="logout">Cerrar sesión</button><button class="btn" value="ok">Listo</button></div>
+</form></dialog>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
