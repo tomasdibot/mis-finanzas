@@ -233,6 +233,18 @@
   <div class="rowbtns"><span></span><button class="btn" value="ok">Listo</button></div>
 </form></dialog>
 
+<!-- delete everything: typing BORRAR confirms it -->
+<dialog class="sheet" id="deleteSheet"><form method="dialog" class="in" id="deleteForm">
+  <h3 tabindex="-1" autofocus>Borrar todos tus datos</h3>
+  <p class="note">Se borran de esta app tus movimientos, saldos, notas, nombres y reglas, y el permiso de Mercado Pago.
+    Tu cuenta de Mercado Pago no cambia. Si querés, descargá antes una copia de seguridad.
+    Después, la próxima persona que entre con la cuenta dueña de la app de Mercado Pago empieza de cero.</p>
+  <div class="field"><label for="delConfirm">Para confirmar, escribí BORRAR</label>
+    <input id="delConfirm" type="text" autocomplete="off" autocapitalize="characters"></div>
+  <div class="rowbtns"><span></span><span><button class="btn ghost" value="cancel">Cancelar</button>
+    <button class="btn" value="delete" id="delGo">Borrar todo</button></span></div>
+</form></dialog>
+
 <!-- settings -->
 <dialog class="sheet" id="settings"><form method="dialog" class="in">
   <!-- autofocus on the title: opening a sheet would otherwise focus its first field, and on a phone that pops open
@@ -253,6 +265,11 @@
   <div class="field"><span class="flabel">Categorías</span>
     <button type="button" class="btn ghost wide" id="openWords">Palabras aprendidas de tus notas</button>
     <button type="button" class="btn ghost wide" id="openRules">Tus reglas: nombres y palabras</button></div>
+  <div class="field"><span class="flabel">Tus datos</span>
+    <button type="button" class="btn ghost wide" id="exportData">Descargar una copia de seguridad</button>
+    <button type="button" class="btn ghost wide" id="importData">Restaurar una copia</button>
+    <input type="file" id="importFile" accept="application/json,.json" hidden>
+    <button type="button" class="btn ghost wide" id="openDelete">Borrar todos mis datos</button></div>
   <div class="field"><span class="flabel">Última actualización</span><div class="note" id="syncInfo"></div></div>
   <div class="rowbtns"><button class="btn ghost" id="logout" value="logout">Cerrar sesión</button><button class="btn" value="ok">Listo</button></div>
 </form></dialog>

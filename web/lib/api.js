@@ -54,5 +54,39 @@ export const api = {
   async saveRecipient(key, name, category) { if (!DEMO) await call("/api/recipients", { key, name, category }); },
   /** Personal rules: upsert [{ kind, match, value }], delete [{ kind, match }]. Demo: kept only in this browser. */
   async saveRules(writes, deletes) { if (!DEMO) await call("/api/rules", { writes, deletes }); },
+  /** The Owner's backup: everything but the Mercado Pago token and sessions (src/backup.js). */
+  async exportBackup() {
+    const head = { format: "mis-finanzas", version: 1, exported_at: new Date().toISOString() };
+    if (DEMO) return { ...head, movements: demoRows(), balances: [], recipients: [], notes: [], personal_rules: [], ml_categories: [], settings: {} };
+    const meta = await call("/api/export/meta"), movements = [];
+    for (let page = 0; ; page++) {
+      const r = await call(`/api/movements?page=${page}`);
+      movements.push(...r.rows.map(({ h, ...row }) => row));
+      if (!r.more) break;
+    }
+    return { ...head, ...meta, movements };
+  },
+  /** Restore a backup in small chunks (adds/replaces, never deletes). onProgress(0..1). */
+  async importBackup(b, onProgress = () => {}) {
+    if (DEMO) throw new Error("en la demostración no se importan datos");
+    if (b?.format !== "mis-finanzas" || b.version !== 1) throw new Error("ese archivo no es una copia de Mis finanzas");
+    const tables = ["personal_rules", "recipients", "notes", "ml_categories", "balances", "movements"];
+    const total = tables.reduce((n, t) => n + (b[t]?.length ?? 0), 0) || 1;
+    let done = 0;
+    if (b.settings?.recipient_salt) await call("/api/import", { settings: { recipient_salt: b.settings.recipient_salt } });
+    for (const t of tables) {
+      const rows = b[t] ?? [];
+      for (let i = 0; i < rows.length; i += 300) {
+        await call("/api/import", { table: t, rows: rows.slice(i, i + 300) });
+        done += Math.min(300, rows.length - i); onProgress(done / total);
+      }
+    }
+    return done;
+  },
+  /** Erase every row of this Deployment (it goes back to unclaimed). */
+  async deleteAll() {
+    if (DEMO) throw new Error("en la demostración no hay datos guardados");
+    await call("/api/delete-all", { confirm: "BORRAR" });
+  },
   async signOut() { if (!DEMO) await call("/api/auth/logout", {}); },
 };

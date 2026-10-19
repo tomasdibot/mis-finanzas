@@ -4,17 +4,21 @@ import { json } from "./http.js";
 import { login, callback, logout, signedIn } from "./auth.js";
 import { state, movements, syncLog, saveNotes, saveRecipient, saveRules } from "./data.js";
 import { cronStep, manualStep, collectReports } from "./sync.js";
+import { exportMeta, importChunk, deleteAll } from "./backup.js";
 
 const GET = {
   "/api/state": (req, env) => state(env),
   "/api/movements": (req, env, url) => movements(env, url),
   "/api/sync-log": (req, env) => syncLog(env),
   "/api/session": () => json({ ok: true }),
+  "/api/export/meta": (req, env) => exportMeta(env),
 };
 const POST = {
   "/api/notes": (req, env, url, body) => saveNotes(env, body),
   "/api/recipients": (req, env, url, body) => saveRecipient(env, body),
   "/api/rules": (req, env, url, body) => saveRules(env, body),
+  "/api/import": (req, env, url, body) => importChunk(env, body),
+  "/api/delete-all": (req, env, url, body) => deleteAll(env, body),
   // one step of the sync; the app repeats it until done (each request gets its own CPU allowance)
   "/api/sync": async (req, env) => { const r = await manualStep(env); return json(r, r.ok ? 200 : 502); },
   "/api/sync/reports": async (req, env) => json(await collectReports(env)),
@@ -41,7 +45,7 @@ export default {
     if (!route) return json({ ok: false, error: "No existe." }, 404);
     let body = null;
     if (req.method === "POST") {
-      if (Number(req.headers.get("content-length") ?? 0) > 200_000) return json({ ok: false, error: "Demasiado grande." }, 413);
+      if (Number(req.headers.get("content-length") ?? 0) > 1_000_000) return json({ ok: false, error: "Demasiado grande." }, 413);
       body = await req.json().catch(() => null);
     }
     return route(req, env, url, body);

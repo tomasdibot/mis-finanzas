@@ -584,6 +584,15 @@ function wire() {
     else if (v === "clear") saveNote(ctx, "", "", false);
   });
   $("#moveForm").addEventListener("submit", (e) => { if (e.submitter == null) { e.preventDefault(); $("#moveSheet").close("save"); } }); // Enter = Guardar
+  $("#exportData").addEventListener("click", exportData);
+  $("#importData").addEventListener("click", () => { if (DEMO) { showBanner("En la demostración no se importan datos.", 2500); return; } $("#importFile").click(); });
+  $("#importFile").addEventListener("change", (e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) { $("#settings").close(); importData(f); } });
+  $("#openDelete").addEventListener("click", () => { $("#settings").close(); $("#delConfirm").value = ""; $("#deleteSheet").showModal(); });
+  $("#deleteSheet").addEventListener("close", () => {
+    if ($("#deleteSheet").returnValue !== "delete") return;
+    if ($("#delConfirm").value.trim().toUpperCase() !== "BORRAR") { showBanner("No se borró nada: había que escribir BORRAR.", 3000); return; }
+    deleteData();
+  });
   $("#openRules").addEventListener("click", () => { $("#settings").close(); renderRuleList(); $("#rulesSheet").showModal(); });
   $("#pAdd").addEventListener("click", addWordRule);
   $("#pWord").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); addWordRule(); } });
@@ -615,6 +624,37 @@ function downloadCsv() {
   const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(new Blob(["﻿" + csv], { type: "text/csv" })),
     download: `movimientos-${months[0]}-a-${months[months.length - 1]}.csv` });
   a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+// ------------------------------------------------------------ your data: backup, restore, delete everything
+async function exportData() {
+  showBanner("Preparando la copia…");
+  try {
+    const b = await api.exportBackup();
+    const a = Object.assign(document.createElement("a"), {
+      href: URL.createObjectURL(new Blob([JSON.stringify(b)], { type: "application/json" })),
+      download: `mis-finanzas-copia-${new Date().toISOString().slice(0, 10)}${DEMO ? "-demo" : ""}.json` });
+    a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    showBanner(`Copia descargada: ${b.movements.length} movimientos. Guardala en un lugar seguro.`, 4000);
+  } catch (e) { showBanner(`No se pudo preparar la copia: ${e.message}`); }
+}
+async function importData(file) {
+  let b;
+  try { b = JSON.parse(await file.text()); } catch { showBanner("Ese archivo no es una copia de Mis finanzas."); return; }
+  const n = b?.movements?.length ?? 0;
+  if (!confirm(`¿Restaurar esta copia (${n} movimientos)? Se agrega a lo que ya tenés; si un dato está en los dos lados, queda el de la copia.`)) return;
+  try {
+    await api.importBackup(b, (p) => showBanner(`Restaurando la copia… ${Math.round(p * 100)} %`));
+    await loadRows();
+    showBanner("Copia restaurada.", 3500);
+  } catch (e) { showBanner(`No se pudo restaurar: ${e.message}`); }
+}
+async function deleteData() {
+  try {
+    await api.deleteAll();
+    try { Object.keys(localStorage).filter((k) => k.startsWith("mpf.") && !/theme|palette|range/.test(k)).forEach((k) => localStorage.removeItem(k)); } catch { /* ignore */ }
+    location.replace(location.pathname);
+  } catch (e) { showBanner(`No se pudo borrar: ${e.message}`); }
 }
 
 // ------------------------------------------------------------ cloud
