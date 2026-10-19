@@ -586,12 +586,13 @@ async function loadRows() {
   if (nts) { notes = Object.fromEntries(nts.map((n) => [n.id, { note: n.note ?? "", category: n.category }])); store.set(NKEY, notes); }
   if (!DEMO) {
     if (bal) store.set("balance", bal);
-    if (!all.length) showBanner("Todavía no hay datos: tocá ↻ para la primera descarga.");
+    // first visit after the Claim: the first download (13 months) starts by itself, once
+    if (!all.length && !firstSync) { firstSync = true; setTimeout(syncNow, 0); }
     store.set("rows", all);
   }
   setData(all, bal ?? null);
 }
-let syncing = false;
+let syncing = false, firstSync = false;
 async function syncNow() {
   if (syncing) return;
   if (DEMO) { await loadRows(); showBanner("En modo demostración no hay nada que actualizar.", 2500); return; }
@@ -599,12 +600,13 @@ async function syncNow() {
   const btn = $("#refresh"); btn.classList.add("spin"); btn.disabled = true;
   showBanner("Actualizando con Mercado Pago…");
   try {
-    const data = await api.sync();
+    const MES_ = (key) => monthName(key, true);
+    const data = await api.sync((s) => showBanner(`Descargando de Mercado Pago: ${MES_(s.month)} (${Math.round(s.progress * 100)} %)…`));
     if (!data?.ok) throw new Error(data?.error || "error");
     await loadRows();
-    showBanner("Al día: movimientos y saldo actualizados.", 3500);
-    // Mercado Pago's verification report finishes in the background (~1 min): pick it up quietly
-    [60e3, 120e3].forEach((ms) => setTimeout(() => loadRows().catch(() => {}), ms));
+    showBanner(data.note ? `Movimientos al día. ${data.note}` : "Al día: movimientos actualizados.", 3500);
+    // Mercado Pago's balance report finishes in the background (~1 min): pick it up quietly
+    [60e3, 120e3].forEach((ms) => setTimeout(() => api.collectReports().then(loadRows).catch(() => {}), ms));
   } catch (e) { showBanner(`No se pudo actualizar: ${e.message}`); }
   finally { btn.classList.remove("spin"); btn.disabled = false; syncing = false; loadStatus(); }
 }

@@ -3,6 +3,7 @@
 import { json } from "./http.js";
 import { login, callback, logout, signedIn } from "./auth.js";
 import { state, movements, syncLog, saveNotes, saveRecipient } from "./data.js";
+import { cronStep, manualStep, collectReports } from "./sync.js";
 
 const GET = {
   "/api/state": (req, env) => state(env),
@@ -13,7 +14,9 @@ const GET = {
 const POST = {
   "/api/notes": (req, env, url, body) => saveNotes(env, body),
   "/api/recipients": (req, env, url, body) => saveRecipient(env, body),
-  "/api/sync": () => json({ ok: false, error: "La actualización con Mercado Pago llega pronto." }, 501),
+  // one step of the sync; the app repeats it until done (each request gets its own CPU allowance)
+  "/api/sync": async (req, env) => { const r = await manualStep(env); return json(r, r.ok ? 200 : 502); },
+  "/api/sync/reports": async (req, env) => json(await collectReports(env)),
 };
 
 export default {
@@ -41,5 +44,10 @@ export default {
       body = await req.json().catch(() => null);
     }
     return route(req, env, url, body);
+  },
+
+  // Cron (wrangler.toml [triggers]): one step every 30 minutes
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(cronStep(env).then((r) => { if (!r.ok) console.log(`sync: ${r.error}`); }));
   },
 };

@@ -36,8 +36,18 @@ export const api = {
   },
   /** The last sync runs, newest first: [{ ok, finished_at, rows, detail }]. */
   async syncLog() { return DEMO ? [] : (await call("/api/sync-log")).runs; },
-  /** Ask the Worker to sync with Mercado Pago now. */
-  async sync() { return DEMO ? { ok: true } : call("/api/sync", {}); },
+  /** Sync with Mercado Pago now: one small step per request until done. onStep({ month, progress }) reports progress. */
+  async sync(onStep = () => {}) {
+    if (DEMO) return { ok: true };
+    for (let i = 0; i < 100; i++) {
+      const r = await call("/api/sync", {});
+      if (r.done || r.idle) return r;
+      onStep(r);
+    }
+    return { ok: true };
+  },
+  /** Pick up the balance report Mercado Pago generates in the background after a sync. */
+  async collectReports() { if (!DEMO) await call("/api/sync/reports", {}); },
   /** Upsert notes ({ id, note, category }) and delete notes by id. Demo: kept only in this browser. */
   async saveNotes(writes, deletes) { if (!DEMO) await call("/api/notes", { writes, deletes }); },
   /** Name a transfer recipient (empty name = forget the name). Demo: kept only in this browser. */
