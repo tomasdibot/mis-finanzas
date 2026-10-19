@@ -5,13 +5,15 @@ export const PAGE = 1000; // movements per page (keeps each request well inside 
 
 /** GET /api/state: latest balance, recipient names, notes, personal rules. */
 export async function state(env) {
-  const [bal, rec, nts, pr] = await env.DB.batch([
+  const [bal, rec, nts, pr, st] = await env.DB.batch([
     env.DB.prepare("SELECT available, as_of, fetched_at FROM balances ORDER BY as_of DESC LIMIT 1"),
     env.DB.prepare("SELECT key, name, category FROM recipients"),
     env.DB.prepare("SELECT id, note, category FROM notes"),
     env.DB.prepare("SELECT kind, match, value FROM personal_rules ORDER BY kind, match"),
+    env.DB.prepare(`SELECT key, value FROM app_settings WHERE key IN (${OWNER_SETTINGS.map((k) => `'${k}'`).join(", ")})`),
   ]);
-  return json({ balance: bal.results[0] ?? null, recipients: rec.results, notes: nts.results, rules: pr.results });
+  return json({ balance: bal.results[0] ?? null, recipients: rec.results, notes: nts.results, rules: pr.results,
+    settings: Object.fromEntries(st.results.map((r) => [r.key, r.value])) });
 }
 
 /** GET /api/movements?page=N: raw movements, oldest first, PAGE at a time. */
@@ -62,6 +64,21 @@ export async function saveRules(env, body) {
   ];
   if (stmts.length) await env.DB.batch(stmts);
   return json({ ok: true });
+}
+
+// settings the Owner can see and change (everything else in app_settings is server-only)
+const OWNER_SETTINGS = ["github_repo"];
+
+/** POST /api/settings { github_repo: "usuario/repositorio" } — empty forgets it. */
+export async function saveSettings(env, body) {
+  let repo = typeof body?.github_repo === "string" ? body.github_repo.trim() : null;
+  if (repo == null) return bad("Nada para guardar.");
+  repo = repo.replace(/^https?:\/\/(www\.)?github\.com\//i, "").replace(/\.git$/i, "").replace(/\/+$/, "");
+  if (repo && !/^[A-Za-z0-9-]{1,39}\/[A-Za-z0-9._-]{1,100}$/.test(repo)) return bad("Esa no parece la dirección de una copia en GitHub (usuario/nombre).");
+  await (repo
+    ? env.DB.prepare("INSERT INTO app_settings (key, value) VALUES ('github_repo', ?1) ON CONFLICT (key) DO UPDATE SET value = excluded.value").bind(repo)
+    : env.DB.prepare("DELETE FROM app_settings WHERE key = 'github_repo'")).run();
+  return json({ ok: true, github_repo: repo || null });
 }
 
 /** POST /api/recipients { key, name, category } — an empty name forgets the name. */

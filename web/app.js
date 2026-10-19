@@ -29,6 +29,7 @@ const store = {
 // the Template's rules + the Owner's personal rules (merchant names, words), from their database
 const PKEY = DEMO ? "demoPersonal" : "personal";   // demo rules never mix with the real ones
 let personal = store.get(PKEY, []);
+let ownerSettings = DEMO ? {} : store.get("settings", {});   // { github_repo }
 let rules = withPersonal(baseRules, personal);
 // a category's own color (rules.tints) for its icon, as an inline style attribute (or nothing)
 const tintStyle = (cat) => (rules.tints?.[cat] ? ` style="--t:${rules.tints[cat]}"` : "");
@@ -559,13 +560,14 @@ function wire() {
   $("#more").addEventListener("click", () => { S.showN += 50; render(); });
   $("#csv").addEventListener("click", downloadCsv);
 
-  $("#openSettings").addEventListener("click", () => $("#settings").showModal());
+  $("#openSettings").addEventListener("click", () => { showVersion(); $("#settings").showModal(); });
+  $("#updateApp").addEventListener("click", updateApp);
   $("#theme").addEventListener("change", (e) => { store.set("theme", e.target.value); applyTheme(); });
   $("#palette").addEventListener("click", (e) => { const p = e.target.closest("[data-p]")?.dataset.p; if (!p) return; store.set("palette", p); applyTheme(); });
   $("#settings").addEventListener("close", async () => {
     if ($("#settings").returnValue === "logout" && !DEMO) {
       await api.signOut();
-      try { ["rows", "balance", "recipients", "notes", "personal"].forEach((k) => localStorage.removeItem("mpf." + k)); } catch { /* ignore */ }
+      try { ["rows", "balance", "recipients", "notes", "personal", "settings"].forEach((k) => localStorage.removeItem("mpf." + k)); } catch { /* ignore */ }
       location.reload();
     }
   });
@@ -657,6 +659,29 @@ async function deleteData() {
   } catch (e) { showBanner(`No se pudo borrar: ${e.message}`); }
 }
 
+// ------------------------------------------------------------ version and updates (a GitHub "Run workflow" in the Owner's copy)
+async function showVersion() {
+  const h = await api.health().catch(() => ({}));
+  $("#versionInfo").textContent = h.version ? `Versión ${h.version}` : "";
+  $("#ghRepo").value = ownerSettings.github_repo ?? "";
+  if (h.template) { $("#releaseNotes").href = `https://github.com/${h.template}/releases`; $("#releaseNotes").hidden = false; }
+}
+async function updateApp() {
+  const typed = $("#ghRepo").value.trim();
+  if (!typed) { showBanner("Escribí primero la dirección de tu copia en GitHub.", 3000); $("#ghRepo").focus(); return; }
+  // open the page right away (a popup opened after waiting for the network is blocked by phones)
+  const win = window.open("about:blank", "_blank");
+  try {
+    let repo = typed;
+    if (!DEMO && typed !== ownerSettings.github_repo) {
+      repo = (await api.saveSettings({ github_repo: typed })).github_repo;
+      ownerSettings = { ...ownerSettings, github_repo: repo }; store.set("settings", ownerSettings); $("#ghRepo").value = repo;
+    }
+    const url = `https://github.com/${repo.replace(/^https?:..(www.)?github.com./i, "")}/actions/workflows/actualizar.yml`;
+    if (win) win.location.href = url; else location.href = url;
+  } catch (e) { win?.close(); showBanner(`No se pudo: ${e.message}`); }
+}
+
 // ------------------------------------------------------------ cloud
 function ago(iso) {
   const min = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
@@ -686,6 +711,7 @@ async function loadRows() {
   try { data = await api.load(); } catch (e) { showBanner(`No se pudieron leer los datos: ${e.message}`); return; }
   const { rows: all, balance: bal, recipients: rec, notes: nts } = data;
   if (rec) { recipients = Object.fromEntries(rec.map((r) => [r.key, { name: r.name, category: r.category }])); store.set(RKEY, recipients); }
+  if (data.settings) { ownerSettings = data.settings; store.set("settings", ownerSettings); }
   if (data.rules) { personal = data.rules; store.set(PKEY, personal); rules = withPersonal(baseRules, personal); }
   if (nts) { notes = Object.fromEntries(nts.map((n) => [n.id, { note: n.note ?? "", category: n.category }])); store.set(NKEY, notes); }
   if (!DEMO) {

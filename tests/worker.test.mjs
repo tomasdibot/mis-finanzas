@@ -57,7 +57,8 @@ async function signIn(code = "codigo-bueno") {
 test("without a session, data is refused; the app and health answer", async () => {
   for (const p of ["/api/state", "/api/movements", "/api/sync-log", "/api/session"]) assert.equal((await req(p)).status, 401, p);
   assert.equal(await (await req("/")).text(), "app");
-  assert.deepEqual(await (await req("/api/health")).json(), { ok: true, db: "ok", signIn: true });
+  const h = await (await req("/api/health")).json();
+  assert.deepEqual([h.ok, h.db, h.signIn], [true, "ok", true]);
 });
 
 test("sign-in starts at Mercado Pago with PKCE and this Deployment's callback", async () => {

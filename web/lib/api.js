@@ -32,7 +32,7 @@ export const api = {
       rows.push(...r.rows);
       if (!r.more) break;
     }
-    return { rows, balance: st.balance, recipients: st.recipients, notes: st.notes, rules: st.rules };
+    return { rows, balance: st.balance, recipients: st.recipients, notes: st.notes, rules: st.rules, settings: st.settings };
   },
   /** The last sync runs, newest first: [{ ok, finished_at, rows, detail }]. */
   async syncLog() { return DEMO ? [] : (await call("/api/sync-log")).runs; },
@@ -88,5 +88,9 @@ export const api = {
     if (DEMO) throw new Error("en la demostración no hay datos guardados");
     await call("/api/delete-all", { confirm: "BORRAR" });
   },
+  /** Version of this Deployment and the Template it updates from. */
+  async health() { const r = await fetch("/api/health", { cache: "no-store" }); return r.ok ? r.json() : {}; },
+  /** Owner settings ({ github_repo }). */
+  async saveSettings(s) { if (DEMO) throw new Error("en la demostración no se guarda"); return call("/api/settings", s); },
   async signOut() { if (!DEMO) await call("/api/auth/logout", {}); },
 };

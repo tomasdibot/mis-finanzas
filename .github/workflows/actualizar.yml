@@ -1,0 +1,29 @@
+# Actualizar Mis finanzas: tocá "Run workflow" (arriba a la derecha) y confirmá con el botón verde.
+# Trae la última versión publicada de la plantilla; Cloudflare la publica sola en unos minutos.
+# Tus datos y tus reglas están en tu base de datos: una actualización nunca los toca.
+name: Actualizar Mis finanzas
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency: actualizar
+jobs:
+  actualizar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Traer la última versión
+        run: node scripts/update.mjs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Guardar
+        run: |
+          git config user.name "mis-finanzas"
+          git config user.email "mis-finanzas@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then echo "Ya tenías la última versión."; exit 0; fi
+          git commit -m "Actualizar a la versión $(node -p "require('./package.json').version")"
+          git push

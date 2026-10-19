@@ -2,9 +2,11 @@
 // Everything under /api/ except health and sign-in needs the Owner's session (src/auth.js).
 import { json } from "./http.js";
 import { login, callback, logout, signedIn } from "./auth.js";
-import { state, movements, syncLog, saveNotes, saveRecipient, saveRules } from "./data.js";
+import { state, movements, syncLog, saveNotes, saveRecipient, saveRules, saveSettings } from "./data.js";
 import { cronStep, manualStep, collectReports } from "./sync.js";
 import { exportMeta, importChunk, deleteAll } from "./backup.js";
+import pkg from "../package.json" with { type: "json" };
+import template from "../template.json" with { type: "json" };
 
 const GET = {
   "/api/state": (req, env) => state(env),
@@ -19,6 +21,7 @@ const POST = {
   "/api/rules": (req, env, url, body) => saveRules(env, body),
   "/api/import": (req, env, url, body) => importChunk(env, body),
   "/api/delete-all": (req, env, url, body) => deleteAll(env, body),
+  "/api/settings": (req, env, url, body) => saveSettings(env, body),
   // one step of the sync; the app repeats it until done (each request gets its own CPU allowance)
   "/api/sync": async (req, env) => { const r = await manualStep(env); return json(r, r.ok ? 200 : 502); },
   "/api/sync/reports": async (req, env) => json(await collectReports(env)),
@@ -31,7 +34,8 @@ export default {
     if (path === "/api/health") {
       // tells the app the backend and the database are reachable; never returns any data
       const row = await env.DB.prepare("SELECT count(*) AS n FROM d1_migrations").first().catch(() => null);
-      return json({ ok: true, db: row ? "ok" : "sin migraciones", signIn: !!(env.MP_CLIENT_ID && env.MP_CLIENT_SECRET) });
+      return json({ ok: true, db: row ? "ok" : "sin migraciones", signIn: !!(env.MP_CLIENT_ID && env.MP_CLIENT_SECRET),
+        version: pkg.version, template: template.repo });
     }
     if (req.method === "GET" && path === "/api/auth/login") return login(req, env);
     if (req.method === "GET" && path === "/api/auth/callback") return callback(req, env);
