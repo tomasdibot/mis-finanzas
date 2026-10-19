@@ -1,5 +1,7 @@
 {
   "name": "mis-finanzas",
+  "version": "0.6.0",
+  "description": "Tus gastos e ingresos de Mercado Pago, en tu propia cuenta de Cloudflare (gratis).",
   "private": true,
   "type": "module",
   "scripts": {
@@ -11,5 +13,17 @@
   "devDependencies": {
     "wrangler": "^4.151.1"
   },
-  "version": "0.6.0"
+  "cloudflare": {
+    "bindings": {
+      "MP_CLIENT_ID": {
+        "description": "El **Client ID** de tu aplicación de Mercado Pago: [Tus integraciones](https://www.mercadopago.com.ar/developers/panel/app) → tu aplicación → **Credenciales de producción**."
+      },
+      "MP_CLIENT_SECRET": {
+        "description": "El **Client Secret** de esa misma aplicación (mismo lugar). Queda guardado como secreto en tu cuenta de Cloudflare; nadie más lo ve."
+      },
+      "DB": {
+        "description": "Tu base de datos (se crea sola, gratis)."
+      }
+    }
+  }
 }

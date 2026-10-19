@@ -12,3 +12,5 @@ logs/
 backup*.json
 .DS_Store
 Thumbs.db
+!.dev.vars.example
+mis-finanzas-copia*.json
